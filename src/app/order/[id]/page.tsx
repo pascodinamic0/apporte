@@ -29,50 +29,54 @@ export default async function OrderPage({
   const base =
     process.env.NEXT_PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
-  const res = await fetch(`${base}/api/orders/${id}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return notFound();
-  const { order } = (await res.json()) as { order: any };
-  if (!order) return notFound();
-  const idx = steps.indexOf(order.status as any);
-  return (
-    <div className="py-2">
-      <h1 className="text-xl font-semibold mb-2">Commande #{order.id.slice(-6)}</h1>
-      <div className="text-sm text-gray-600 mb-2">
-        Total: {formatPriceUSD(order.totalUsd)} • Paiement: {order.paymentMethod}
+  try {
+    const res = await fetch(`${base}/api/orders/${id}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return notFound();
+    const { order } = (await res.json()) as { order: any };
+    if (!order) return notFound();
+    const idx = steps.indexOf(order.status as any);
+    return (
+      <div className="py-2">
+        <h1 className="text-xl font-semibold mb-2">Commande #{order.id.slice(-6)}</h1>
+        <div className="text-sm text-gray-600 mb-2">
+          Total: {formatPriceUSD(order.totalUsd)} • Paiement: {order.paymentMethod}
+        </div>
+        <Card>
+          <CardHeader>Suivi</CardHeader>
+          <CardContent>
+            <ol className="relative border-s border-gray-200">
+              {steps.map((s, i) => (
+                <li key={s} className="mb-6 ms-6">
+                  <span
+                    className={`absolute -start-3 flex h-6 w-6 items-center justify-center rounded-full ${
+                      i <= idx ? "bg-emerald-700 text-white" : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <h3 className="font-medium capitalize">
+                    {labelForStatus(s)}
+                  </h3>
+                  {i === idx && <p className="text-sm text-gray-600">Étape en cours…</p>}
+                </li>
+              ))}
+            </ol>
+            <div className="mt-3 text-sm">
+              Code de livraison (PIN):
+              <span className="ml-2 inline-block rounded-md bg-emerald-50 px-2 py-1 font-mono text-base font-bold text-emerald-800">
+                {order.pin}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        {order.status === "delivered" && <RateOrder orderId={order.id} existing={order.rating} />}
       </div>
-      <Card>
-        <CardHeader>Suivi</CardHeader>
-        <CardContent>
-          <ol className="relative border-s border-gray-200">
-            {steps.map((s, i) => (
-              <li key={s} className="mb-6 ms-6">
-                <span
-                  className={`absolute -start-3 flex h-6 w-6 items-center justify-center rounded-full ${
-                    i <= idx ? "bg-emerald-700 text-white" : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                <h3 className="font-medium capitalize">
-                  {labelForStatus(s)}
-                </h3>
-                {i === idx && <p className="text-sm text-gray-600">Étape en cours…</p>}
-              </li>
-            ))}
-          </ol>
-          <div className="mt-3 text-sm">
-            Code de livraison (PIN):
-            <span className="ml-2 inline-block rounded-md bg-emerald-50 px-2 py-1 font-mono text-base font-bold text-emerald-800">
-              {order.pin}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-      {order.status === "delivered" && <RateOrder orderId={order.id} existing={order.rating} />}
-    </div>
-  );
+    );
+  } catch {
+    return notFound();
+  }
 }
 
 function labelForStatus(s: string) {

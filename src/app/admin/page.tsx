@@ -5,19 +5,28 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  // Robustly fetch recent orders; never crash the page if API fails
   const base =
     process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
   const cookieHeader = (await cookies())
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
-  const res = await fetch(`${base}/api/orders`, {
-    cache: "no-store",
-    headers: { Cookie: cookieHeader },
-  });
-  const data = (await res.json()) as { orders: any[] };
-  const orders = data.orders ?? [];
+  let orders: any[] = [];
+  try {
+    const url = base ? `${base}/api/orders` : `/api/orders`;
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { orders: any[] };
+      orders = data.orders ?? [];
+    }
+  } catch {
+    // swallow — soft empty state below
+  }
   const riders = listRiders();
   const merchants = getRestaurants();
   const customers = getDemoUsers().filter((u) => u.role === "customer");
