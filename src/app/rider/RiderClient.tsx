@@ -3,17 +3,15 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 
-type Offer =
-  | {
-      orderId: string;
-      riderId: string;
-      pickupDistanceKm: number;
-      deliveryDistanceKm: number;
-      etaMinutes: number;
-      earningsUsd: number;
-      expiresAt: number;
-    }
-  | null;
+type Offer = {
+  orderId: string;
+  riderId: string;
+  pickupDistanceKm: number;
+  deliveryDistanceKm: number;
+  etaMinutes: number;
+  earningsUsd: number;
+  expiresAt: number;
+} | null;
 
 export function RiderClient({ riderId }: { riderId: string }) {
   const [status, setStatus] = useState<"offline" | "online" | "busy">("online");
@@ -31,7 +29,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
     return () => clearInterval(id);
   }, [status, orderId, riderId]);
 
-  async function setRiderStatus(s: "offline" | "online" | "busy"): Promise<void> {
+  async function setRiderStatus(s: "offline" | "online" | "busy") {
     setStatus(s);
     await fetch(`/api/riders/${riderId}/status`, {
       method: "PATCH",
@@ -40,10 +38,10 @@ export function RiderClient({ riderId }: { riderId: string }) {
     });
   }
 
-  async function act(action: string): Promise<void> {
+  async function act(action: string) {
     if (!orderId && action !== "accept" && action !== "decline") return;
-    const payload: Record<string, unknown> = { action, riderId, orderId };
-    if (action === "delivered") (payload as any).pin = pin;
+    const payload: any = { action, riderId, orderId };
+    if (action === "delivered") payload.pin = pin;
     const r = await fetch("/api/dispatch/offer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

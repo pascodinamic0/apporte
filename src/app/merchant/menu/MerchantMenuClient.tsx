@@ -18,30 +18,21 @@ export function MerchantMenuClient({
     setMenu(initialMenu);
   }, [initialMenu, restaurantId]);
 
-  async function toggleAvailability(mi: MenuItem): Promise<void> {
+  async function toggleAvailability(mi: MenuItem) {
     await fetch(`/api/menu/${mi.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ available: !mi.available }),
     });
-    setMenu((currentMenu) =>
-      currentMenu.map((item) =>
-        item.id === mi.id ? { ...item, available: !item.available } : item
-      )
-    );
+    setMenu((cur) => cur.map((x) => (x.id === mi.id ? { ...x, available: !x.available } : x)));
   }
-
-  async function updatePrice(mi: MenuItem, priceUsd: number): Promise<void> {
+  async function updatePrice(mi: MenuItem, priceUsd: number) {
     await fetch(`/api/menu/${mi.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ priceUsd }),
     });
-    setMenu((currentMenu) =>
-      currentMenu.map((item) =>
-        item.id === mi.id ? { ...item, priceUsd } : item
-      )
-    );
+    setMenu((cur) => cur.map((x) => (x.id === mi.id ? { ...x, priceUsd } : x)));
   }
 
   // As a pragmatic fallback for demo, allow manual refresh by reloading the page
@@ -49,9 +40,7 @@ export function MerchantMenuClient({
     <div className="py-2">
       <h1 className="text-xl font-semibold mb-3">Menu</h1>
       <div className="grid gap-3">
-        {menu.length === 0 && (
-          <div className="text-gray-600">Chargement du menu…</div>
-        )}
+        {menu.length === 0 && <div className="text-gray-600">Chargement du menu…</div>}
         {menu.map((m) => (
           <Card key={m.id}>
             <CardHeader className="flex items-center justify-between">
