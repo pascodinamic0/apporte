@@ -1,10 +1,23 @@
-import { listOrdersAll, listRiders, getRestaurants, getDemoUsers } from "@/src/lib/data/memory";
+import { listRiders, getRestaurants, getDemoUsers } from "@/src/lib/data/memory";
+import { cookies } from "next/headers";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminPage() {
-  const orders = listOrdersAll();
+export default async function AdminPage() {
+  const base =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
+  const cookieHeader = (await cookies())
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+  const res = await fetch(`${base}/api/orders`, {
+    cache: "no-store",
+    headers: { Cookie: cookieHeader },
+  });
+  const data = (await res.json()) as { orders: any[] };
+  const orders = data.orders ?? [];
   const riders = listRiders();
   const merchants = getRestaurants();
   const customers = getDemoUsers().filter((u) => u.role === "customer");

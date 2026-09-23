@@ -19,8 +19,21 @@ const steps = [
   "delivered",
 ] as const;
 
-export default function OrderPage({ params }: { params: { id: string } }) {
-  const order = getOrder(params.id);
+export default async function OrderPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  // Fetch via API to ensure consistency across runtimes in demo mode
+  const base =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
+  const res = await fetch(`${base}/api/orders/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return notFound();
+  const { order } = (await res.json()) as { order: any };
   if (!order) return notFound();
   const idx = steps.indexOf(order.status as any);
   return (

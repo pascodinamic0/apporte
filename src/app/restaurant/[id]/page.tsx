@@ -5,8 +5,13 @@ import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { AddToCartButton } from "./parts";
 
-export default function RestaurantPage({ params }: { params: { id: string } }) {
-  const r = getRestaurant(params.id);
+export default async function RestaurantPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const r = getRestaurant(id);
   if (!r) return notFound();
   const menu = getMenuForRestaurant(r.id);
   return (

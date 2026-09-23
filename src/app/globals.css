@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --brand: #047857; /* emerald-700 */
+  --brand-600: #059669;
+  --brand-800: #065f46;
+  --radius: 12px;
+  --shadow: 0 4px 16px rgba(0,0,0,0.06);
 }
 
 @theme inline {
@@ -10,17 +15,39 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-xl: var(--radius);
+  --shadow-lg: var(--shadow);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a {
+  color: var(--brand-800);
+}
+a:hover {
+  color: var(--brand);
+}
+
+.brand-gradient {
+  background-image: radial-gradient(1200px 600px at 10% 10%, rgba(4,120,87,0.15), transparent),
+    radial-gradient(800px 400px at 90% 20%, rgba(5,150,105,0.12), transparent),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.card-elevated {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
