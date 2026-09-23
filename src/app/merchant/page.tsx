@@ -28,20 +28,8 @@ export default async function MerchantHome() {
   }
   const rid = user.merchantId!;
   const rest = getRestaurant(rid)!;
-  // Fetch orders via API to ensure cross-runtime consistency in demo mode
-  const base =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
-  const cookieHeader = (await cookies())
-    .getAll()
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
-  const res = await fetch(`${base}/api/orders`, {
-    cache: "no-store",
-    headers: { Cookie: cookieHeader },
-  });
-  const data = (await res.json()) as { orders: any[] };
-  const orders = data.orders ?? [];
+  // Read orders directly from in-process data layer to avoid self-fetch issues on Vercel
+  const orders = listOrdersForRestaurant(rid);
   return (
     <div className="py-2">
       <div className="flex items-baseline justify-between mb-3">
@@ -96,12 +84,21 @@ export default async function MerchantHome() {
 
 async function update(id: string, action: string) {
   "use server";
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/orders/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
-    cache: "no-store",
-  });
+  switch (action) {
+    case "merchant_accept":
+      merchantAccept(id);
+      break;
+    case "merchant_preparing":
+      merchantSetPreparing(id);
+      break;
+    case "merchant_ready":
+      merchantSetReady(id);
+      break;
+    default:
+      break;
+  }
+  // Ensure the page reflects the latest state
+  revalidatePath("/merchant");
 }
 
 function ActionButton({
