@@ -21,7 +21,7 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-32 w-full rounded-lg bg-[url('/globe.svg')] bg-cover bg-center opacity-80" />
+              <div className="h-32 w-full rounded-lg brand-gradient" />
             </CardContent>
           </Card>
         </Link>
@@ -39,7 +39,7 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-32 w-full rounded-lg bg-[url('/window.svg')] bg-cover bg-center opacity-80" />
+              <div className="h-32 w-full rounded-lg brand-gradient" />
             </CardContent>
           </Card>
         </Link>

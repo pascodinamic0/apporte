@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createOrder,
-  getRestaurants,
-  isDemoMode,
   listOrdersForCustomer,
+  listOrdersForRestaurant,
+  listOrdersForRider,
+  listOrdersAll,
 } from "@/src/lib/data/memory";
 import { getCurrentUser } from "@/src/lib/auth";
 import { OrderItem, PaymentMethod } from "@/src/lib/types";
@@ -11,7 +12,16 @@ import { OrderItem, PaymentMethod } from "@/src/lib/types";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ orders: [] });
-  const orders = listOrdersForCustomer(user.id);
+  let orders = [] as ReturnType<typeof listOrdersForCustomer>;
+  if (user.role === "merchant" && user.merchantId) {
+    orders = listOrdersForRestaurant(user.merchantId);
+  } else if (user.role === "rider" && user.riderId) {
+    orders = listOrdersForRider(user.riderId);
+  } else if (user.role === "admin") {
+    orders = listOrdersAll();
+  } else {
+    orders = listOrdersForCustomer(user.id);
+  }
   return NextResponse.json({ orders });
 }
 

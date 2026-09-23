@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
-import {
-  getRestaurant,
-  listOrdersForRestaurant,
-} from "@/src/lib/data/memory";
+import { cookies } from "next/headers";
+import { getRestaurant } from "@/src/lib/data/memory";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
@@ -24,7 +22,20 @@ export default async function MerchantHome() {
   }
   const rid = user.merchantId!;
   const rest = getRestaurant(rid)!;
-  const orders = listOrdersForRestaurant(rid);
+  // Fetch orders via API to ensure cross-runtime consistency in demo mode
+  const base =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
+  const cookieHeader = (await cookies())
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+  const res = await fetch(`${base}/api/orders`, {
+    cache: "no-store",
+    headers: { Cookie: cookieHeader },
+  });
+  const data = (await res.json()) as { orders: any[] };
+  const orders = data.orders ?? [];
   return (
     <div className="py-2">
       <div className="flex items-baseline justify-between mb-3">
