@@ -1,19 +1,16 @@
-"use client";
 import Link from "next/link";
-import { cn } from "@/src/lib/utils";
-import { usePathname } from "next/navigation";
+import { getCurrentUser } from "@/src/lib/auth";
 
-export function Header() {
-  const pathname = usePathname();
-  const isRoleArea =
-    pathname.startsWith("/merchant") || pathname.startsWith("/rider") || pathname.startsWith("/admin");
+export async function Header() {
+  const user = await getCurrentUser();
+  const role = user?.role ?? "customer";
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/70 backdrop-blur">
       <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
         <Link href="/" className="font-bold text-emerald-800 text-lg">
           Apporte
         </Link>
-        {!isRoleArea ? (
+        {role === "customer" ? (
           <nav className="hidden gap-6 md:flex text-sm text-gray-700">
             <Link href="/food" className="hover:text-emerald-700">
               Nourriture
@@ -28,31 +25,50 @@ export function Header() {
               Comptes Démo
             </Link>
           </nav>
+        ) : role === "merchant" ? (
+          <nav className="hidden gap-4 md:flex text-sm text-gray-700">
+            <Link href="/merchant" className="hover:text-emerald-700">
+              Commandes
+            </Link>
+            <Link href="/merchant/menu" className="hover:text-emerald-700">
+              Menu
+            </Link>
+            <Link href="/merchant/stats" className="hover:text-emerald-700">
+              Stats
+            </Link>
+            <Link href="/demo" className="hover:text-emerald-700">
+              Changer de rôle
+            </Link>
+          </nav>
+        ) : role === "rider" ? (
+          <nav className="hidden gap-4 md:flex text-sm text-gray-700">
+            <Link href="/rider" className="hover:text-emerald-700">
+              Courses dispo
+            </Link>
+            <Link href="/rider" className="hover:text-emerald-700">
+              Course active
+            </Link>
+            <Link href="/rider" className="hover:text-emerald-700">
+              Historique
+            </Link>
+            <Link href="/demo" className="hover:text-emerald-700">
+              Changer de rôle
+            </Link>
+          </nav>
         ) : (
           <nav className="hidden gap-4 md:flex text-sm text-gray-700">
-            {pathname.startsWith("/merchant") && (
-              <>
-                <Link href="/merchant" className="hover:text-emerald-700">
-                  Commandes
-                </Link>
-                <Link href="/merchant/menu" className="hover:text-emerald-700">
-                  Menu
-                </Link>
-                <Link href="/merchant/stats" className="hover:text-emerald-700">
-                  Stats
-                </Link>
-              </>
-            )}
-            {pathname.startsWith("/rider") && (
-              <Link href="/rider" className="hover:text-emerald-700">
-                Livreur
-              </Link>
-            )}
-            {pathname.startsWith("/admin") && (
-              <Link href="/admin" className="hover:text-emerald-700">
-                Admin
-              </Link>
-            )}
+            <Link href="/admin" className="hover:text-emerald-700">
+              Vue d’ensemble
+            </Link>
+            <Link href="/admin" className="hover:text-emerald-700">
+              Commandes
+            </Link>
+            <Link href="/admin" className="hover:text-emerald-700">
+              Marchands
+            </Link>
+            <Link href="/admin" className="hover:text-emerald-700">
+              Livreurs
+            </Link>
             <Link href="/demo" className="hover:text-emerald-700">
               Changer de rôle
             </Link>

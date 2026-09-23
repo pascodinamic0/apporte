@@ -22,7 +22,10 @@ export default function DemoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: id }),
       });
-      window.location.href = "/";
+      const role = users.find((u) => u.id === id)?.role ?? "customer";
+      const dest =
+        role === "merchant" ? "/merchant" : role === "rider" ? "/rider" : role === "admin" ? "/admin" : "/";
+      window.location.href = dest;
     } finally {
       setLoggingIn(null);
     }
