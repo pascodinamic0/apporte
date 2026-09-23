@@ -1,5 +1,4 @@
-import { listRiders, getRestaurants, getDemoUsers } from "@/src/lib/data/memory";
-import { cookies } from "next/headers";
+import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/lib/data/memory";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
@@ -18,28 +17,8 @@ export default async function AdminPage() {
       </div>
     );
   }
-  // Robustly fetch recent orders; never crash the page if API fails
-  const base =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  const cookieHeader = (await cookies())
-    .getAll()
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
-  let orders: any[] = [];
-  try {
-    const url = base ? `${base}/api/orders` : `/api/orders`;
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { orders: any[] };
-      orders = data.orders ?? [];
-    }
-  } catch {
-    // swallow — soft empty state below
-  }
+  // Read recent orders directly from in-process data layer
+  const orders = listOrdersAll();
   const riders = listRiders();
   const merchants = getRestaurants();
   const customers = getDemoUsers().filter((u) => u.role === "customer");

@@ -25,19 +25,11 @@ export default async function OrderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  // Fetch via API to ensure consistency across runtimes in demo mode
-  const base =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${process.env.PORT || 3000}`);
-  try {
-    const res = await fetch(`${base}/api/orders/${id}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return notFound();
-    const { order } = (await res.json()) as { order: any };
-    if (!order) return notFound();
-    const idx = steps.indexOf(order.status as any);
-    return (
+  // Read directly from in-process data layer to avoid self-fetch issues
+  const order = getOrder(id);
+  if (!order) return notFound();
+  const idx = steps.indexOf(order.status as any);
+  return (
       <div className="py-2">
         <h1 className="text-xl font-semibold mb-2">Commande #{order.id.slice(-6)}</h1>
         <div className="text-sm text-gray-600 mb-2">
@@ -73,10 +65,7 @@ export default async function OrderPage({
         </Card>
         {order.status === "delivered" && <RateOrder orderId={order.id} existing={order.rating} />}
       </div>
-    );
-  } catch {
-    return notFound();
-  }
+  );
 }
 
 function labelForStatus(s: string) {
