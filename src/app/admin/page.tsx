@@ -1,10 +1,23 @@
 import { listRiders, getRestaurants, getDemoUsers } from "@/src/lib/data/memory";
 import { cookies } from "next/headers";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import Link from "next/link";
+import { requireRole } from "@/src/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  const user = await requireRole(["admin"]);
+  if (!user) {
+    return (
+      <div className="py-6">
+        <div className="text-lg">Accès admin requis.</div>
+        <Link href="/demo" className="text-emerald-700 underline">
+          Ouvrir la page Démo
+        </Link>
+      </div>
+    );
+  }
   // Robustly fetch recent orders; never crash the page if API fails
   const base =
     process.env.NEXT_PUBLIC_BASE_URL ||
@@ -45,12 +58,12 @@ export default async function AdminPage() {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <ListCard title="Commandes récentes">
           {orders.slice(0, 8).map((o) => (
-            <div key={o.id} className="flex items-center justify-between text-sm">
+            <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
               <div className="truncate">
                 #{o.id.slice(-6)} • {o.zone} • {o.items.length} items
               </div>
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1 capitalize">{o.status}</div>
-            </div>
+            </Link>
           ))}
         </ListCard>
         <ListCard title="Livreurs">

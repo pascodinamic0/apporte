@@ -3,8 +3,16 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { getRestaurants, listSmartFinds } from "@/src/lib/data/memory";
 import { Utensils, Package, ShoppingCart } from "lucide-react";
+import { getCurrentUser } from "@/src/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+  if (user && user.role !== "customer") {
+    if (user.role === "merchant") redirect("/merchant");
+    if (user.role === "rider") redirect("/rider");
+    if (user.role === "admin") redirect("/admin");
+  }
   const restaurants = getRestaurants().slice(0, 4);
   const products = listSmartFinds().slice(0, 3);
   return (
