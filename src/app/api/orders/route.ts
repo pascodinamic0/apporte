@@ -1,0 +1,48 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  createOrder,
+  getRestaurants,
+  isDemoMode,
+  listOrdersForCustomer,
+} from "@/src/lib/data/memory";
+import { getCurrentUser } from "@/src/lib/auth";
+import { OrderItem, PaymentMethod } from "@/src/lib/types";
+
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ orders: [] });
+  const orders = listOrdersForCustomer(user.id);
+  return NextResponse.json({ orders });
+}
+
+export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const body = await req.json();
+  const {
+    restaurantId,
+    items,
+    address,
+    zone,
+    paymentMethod,
+  }: {
+    restaurantId?: string;
+    items: OrderItem[];
+    address: string;
+    zone?: string;
+    paymentMethod: PaymentMethod;
+  } = body;
+  if (!items?.length) {
+    return NextResponse.json({ error: "missing_items" }, { status: 400 });
+  }
+  const order = createOrder({
+    customerId: user.id,
+    restaurantId,
+    items,
+    address,
+    zone,
+    paymentMethod,
+  });
+  return NextResponse.json({ ok: true, order });
+}
+
