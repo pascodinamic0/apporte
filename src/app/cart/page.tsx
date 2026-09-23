@@ -11,6 +11,14 @@ export default function CartPage() {
   return (
     <div className="py-2">
       <h1 className="text-xl font-semibold mb-3">Panier</h1>
+      {items.length === 0 && (
+        <div className="mb-3 text-sm">
+          Besoin d’idées ?{" "}
+          <Link href="/smart-finds" className="text-emerald-700 underline">
+            Découvre les Trouvailles
+          </Link>
+        </div>
+      )}
       <div className="grid gap-3">
         {items.length === 0 && (
           <div className="text-gray-600">Ton panier est vide.</div>

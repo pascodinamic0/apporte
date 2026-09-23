@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
+import { User, Store, Bike, ShieldCheck } from "lucide-react";
 
 type DemoUser = { id: string; email: string; name: string; role: string };
 
@@ -33,9 +34,17 @@ export default function DemoPage() {
         {users.map((u) => (
           <Card key={u.id}>
             <CardHeader className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">{u.name}</div>
-                <div className="text-sm text-gray-600">{u.email}</div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
+                  {u.role === "customer" && <User className="h-5 w-5" />}
+                  {u.role === "merchant" && <Store className="h-5 w-5" />}
+                  {u.role === "rider" && <Bike className="h-5 w-5" />}
+                  {u.role === "admin" && <ShieldCheck className="h-5 w-5" />}
+                </div>
+                <div>
+                  <div className="font-medium">{u.name}</div>
+                  <div className="text-sm text-gray-600">{u.email}</div>
+                </div>
               </div>
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1 capitalize">{u.role}</div>
             </CardHeader>

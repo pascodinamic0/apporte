@@ -63,8 +63,10 @@ export default async function OrderPage({
             ))}
           </ol>
           <div className="mt-3 text-sm">
-            Code de livraison (PIN):{" "}
-            <span className="font-mono font-semibold text-emerald-800">{order.pin}</span>
+            Code de livraison (PIN):
+            <span className="ml-2 inline-block rounded-md bg-emerald-50 px-2 py-1 font-mono text-base font-bold text-emerald-800">
+              {order.pin}
+            </span>
           </div>
         </CardContent>
       </Card>

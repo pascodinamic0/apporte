@@ -9,7 +9,10 @@ export default function SmartFindsPage() {
   const products = listSmartFinds();
   return (
     <div className="py-2">
-      <h1 className="text-xl font-semibold mb-3">Trouvailles</h1>
+      <h1 className="text-xl font-semibold">Trouvailles</h1>
+      <p className="text-sm text-gray-700 mb-3">
+        Ajoute des produits malins à ta livraison — pratique et rapide.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {products.map((p) => (
           <Card key={p.id}>

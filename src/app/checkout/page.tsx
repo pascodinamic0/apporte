@@ -108,9 +108,9 @@ export default function CheckoutPage() {
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
             >
-              <option>Mobile Money</option>
-              <option>Cash on delivery</option>
-              <option>Card</option>
+              <option value="Mobile Money">Mobile Money</option>
+              <option value="Cash on delivery">Espèces (à la livraison)</option>
+              <option value="Card">Carte</option>
             </Select>
           </CardContent>
         </Card>
