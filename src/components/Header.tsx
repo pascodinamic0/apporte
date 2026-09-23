@@ -1,4 +1,4 @@
-\"use client\";
+"use client";
 import Link from "next/link";
 import { cn } from "@/src/lib/utils";
 import { usePathname } from "next/navigation";
