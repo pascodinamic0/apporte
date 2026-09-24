@@ -7,8 +7,10 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/70 backdrop-blur">
       <div className="mx-auto max-w-5xl px-4 safe-top py-2 sm:py-3 flex items-center justify-between">
-        <Link href="/" className="font-bold text-emerald-800 text-lg">
-          Apporte
+        <Link href="/" className="flex items-center gap-2 text-emerald-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icons/apporte.svg" alt="" className="h-7 w-7" />
+          <span className="font-extrabold tracking-tight text-lg">Apporte</span>
         </Link>
         {role === "customer" ? (
           <nav className="hidden gap-6 md:flex text-sm text-gray-700">
