@@ -23,10 +23,6 @@ export const metadata: Metadata = {
   description:
     "Commande de nourriture et trouvailles utiles à Kinshasa. On te l’apporte.",
   manifest: "/manifest.webmanifest",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#047857" },
-    { media: "(prefers-color-scheme: dark)", color: "#065f46" },
-  ],
   appleWebApp: {
     capable: true,
     title: "Apporte",
@@ -41,6 +37,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#047857" },
+    { media: "(prefers-color-scheme: dark)", color: "#065f46" },
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
