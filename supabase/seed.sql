@@ -17,18 +17,18 @@ set email = excluded.email,
 -- Restaurants
 insert into public.restaurants (id,name,description,cuisine,eta_minutes,rating,image_url,zone,latitude,longitude,is_open)
 values
-  ('rest_kfc_gombe','KFC Gombe',null,'Fast Food',20,4.4,'/images/burger.png','Gombe',-4.3156,15.3126,true),
-  ('rest_pili_pili','Pili Pili Grill',null,'Grillades',25,4.5,'https://images.unsplash.com/photo-1516685018646-549198525c1b?auto=format&fit=crop&w=1200&q=60','Gombe',-4.322,15.3075,true),
-  ('rest_chez_flore','Chez Flore',null,'Congolais',28,4.3,'/images/fish.png','Gombe',-4.314,15.297,true),
-  ('rest_bistrot','Le Bistrot de Gombe',null,'Bistrot',22,4.2,'/images/bistrot.png','Gombe',-4.309,15.302,true),
-  ('rest_maison_poulet','Maison du Poulet',null,'Poulet',24,4.1,'/images/chicken.png','Gombe',-4.318,15.315,true),
-  ('rest_pizza_inn','Pizza Inn Gombe',null,'Pizza',26,4.0,'/images/pizza.png','Gombe',-4.311,15.309,true),
-  ('rest_fuego','Chez Fuego Grill',null,'Grillades',23,4.2,'/images/chicken.png','Gombe',-4.3195,15.299,true),
-  ('rest_orient','L''Orient Express',null,'Asiatique',27,4.1,'/images/sushi.png','Gombe',-4.305,15.31,true),
-  ('rest_mamba','Chez Mamba',null,'Congolais',25,4.0,'/images/bread.png','Gombe',-4.312,15.316,true),
-  ('rest_baguette','Baguette & Boteka',null,'Boulangerie',18,4.3,'/images/bread.png','Gombe',-4.317,15.308,true),
-  ('rest_sushi','Sushi Kin Gombe',null,'Sushi',30,4.2,'/images/sushi.png','Gombe',-4.313,15.319,true),
-  ('rest_regal','Le Régal Congo',null,'Congolais',26,4.1,'/images/bread.png','Gombe',-4.312,15.316,true)
+  ('rest_kfc_gombe','KFC Gombe',null,'Fast Food',20,4.4,'/images/rest_kfc_gombe.jpg','Gombe',-4.3156,15.3126,true),
+  ('rest_pili_pili','Pili Pili Grill',null,'Grillades',25,4.5,'/images/rest_pili_pili.jpg','Gombe',-4.322,15.3075,true),
+  ('rest_chez_flore','Chez Flore',null,'Congolais',28,4.3,'/images/rest_chez_flore.jpg','Gombe',-4.314,15.297,true),
+  ('rest_bistrot','Le Bistrot de Gombe',null,'Bistrot',22,4.2,'/images/rest_bistrot.jpg','Gombe',-4.309,15.302,true),
+  ('rest_maison_poulet','Maison du Poulet',null,'Poulet',24,4.1,'/images/rest_maison_poulet.jpg','Gombe',-4.318,15.315,true),
+  ('rest_pizza_inn','Pizza Inn Gombe',null,'Pizza',26,4.0,'/images/rest_pizza_inn.jpg','Gombe',-4.311,15.309,true),
+  ('rest_fuego','Chez Fuego Grill',null,'Grillades',23,4.2,'/images/rest_fuego.jpg','Gombe',-4.3195,15.299,true),
+  ('rest_orient','L''Orient Express',null,'Asiatique',27,4.1,'/images/rest_orient.jpg','Gombe',-4.305,15.31,true),
+  ('rest_mamba','Chez Mamba',null,'Congolais',25,4.0,'/images/rest_mamba.jpg','Gombe',-4.312,15.316,true),
+  ('rest_baguette','Baguette & Boteka',null,'Boulangerie',18,4.3,'/images/rest_baguette.jpg','Gombe',-4.317,15.308,true),
+  ('rest_sushi','Sushi Kin Gombe',null,'Sushi',30,4.2,'/images/rest_sushi.jpg','Gombe',-4.313,15.319,true),
+  ('rest_regal','Le Régal Congo',null,'Congolais',26,4.1,'/images/rest_regal.jpg','Gombe',-4.312,15.316,true)
 on conflict (id) do update
 set name = excluded.name,
     description = excluded.description,
@@ -45,15 +45,15 @@ set name = excluded.name,
 -- Menu Items
 insert into public.menu_items (id,restaurant_id,name,description,price_usd,available,image_url,cuisine_tag)
 values
-  ('mi_kfc_1','rest_kfc_gombe','Bucket Poulet (3 pcs)','Poulet croustillant KFC',8,true,'https://images.unsplash.com/photo-1604908554168-7e2e61d3d86a?auto=format&fit=crop&w=1200&q=60','Poulet'),
-  ('mi_kfc_2','rest_kfc_gombe','Burger Zinger','Burger poulet épicé',6.5,true,'/images/burger.png','Fast Food'),
-  ('mi_pili_1','rest_pili_pili','Brochettes de Bœuf','Brochettes tendres au pili pili',7,true,'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=1200&q=60','Grillades'),
-  ('mi_pili_2','rest_pili_pili','Poisson Braisé','Poisson braisé à la congolaise',10,true,'/images/fish.png','Poisson'),
-  ('mi_pizza_1','rest_pizza_inn','Pizza Margherita (M)','Classique, mozzarella et basilic',9,true,'/images/pizza.png','Pizza'),
-  ('mi_pizza_2','rest_pizza_inn','Pizza Poulet (M)','Poulet, oignons, poivrons',11,true,'https://images.unsplash.com/photo-1594007654729-407eedc4be65?auto=format&fit=crop&w=1200&q=60','Pizza'),
-  ('mi_poulet_1','rest_maison_poulet','Poulet Grillé','Demi poulet grillé',12,true,'/images/chicken.png','Poulet'),
-  ('mi_flore_1','rest_chez_flore','Saka-Saka','Feuilles de manioc, arachides',5,true,'/images/bread.png','Congolais'),
-  ('mi_bistrot_1','rest_bistrot','Steak Frites','Steak, frites et salade',13,true,'/images/bistrot.png','Bistrot')
+  ('mi_kfc_1','rest_kfc_gombe','Bucket Poulet (3 pcs)','Poulet croustillant KFC',8,true,'/images/mi_kfc_1.jpg','Poulet'),
+  ('mi_kfc_2','rest_kfc_gombe','Burger Zinger','Burger poulet épicé',6.5,true,'/images/mi_kfc_2.jpg','Fast Food'),
+  ('mi_pili_1','rest_pili_pili','Brochettes de Bœuf','Brochettes tendres au pili pili',7,true,'/images/mi_pili_1.jpg','Grillades'),
+  ('mi_pili_2','rest_pili_pili','Poisson Braisé','Poisson braisé à la congolaise',10,true,'/images/mi_pili_2.jpg','Poisson'),
+  ('mi_pizza_1','rest_pizza_inn','Pizza Margherita (M)','Classique, mozzarella et basilic',9,true,'/images/mi_pizza_1.jpg','Pizza'),
+  ('mi_pizza_2','rest_pizza_inn','Pizza Poulet (M)','Poulet, oignons, poivrons',11,true,'/images/mi_pizza_2.jpg','Pizza'),
+  ('mi_poulet_1','rest_maison_poulet','Poulet Grillé','Demi poulet grillé',12,true,'/images/mi_poulet_1.jpg','Poulet'),
+  ('mi_flore_1','rest_chez_flore','Saka-Saka','Feuilles de manioc, arachides',5,true,'/images/mi_flore_1.jpg','Congolais'),
+  ('mi_bistrot_1','rest_bistrot','Steak Frites','Steak, frites et salade',13,true,'/images/mi_bistrot_1.jpg','Bistrot')
 on conflict (id) do update
 set restaurant_id = excluded.restaurant_id,
     name = excluded.name,
@@ -67,14 +67,14 @@ set restaurant_id = excluded.restaurant_id,
 -- Smart Find Products
 insert into public.smart_find_products (id,name,description,price_usd,stock,category,image_url,tags)
 values
-  ('sf_powerbank','Power bank 20,000 mAh','Recharge ton téléphone partout',18,20,'Mobile & Tech','/images/powerbank.png',array['charge rapide','USB-C']),
-  ('sf_compressor','Compresseur portable voiture','Gonfle tes pneus en minutes',25,10,'Automotive','/images/compressor.png',array['12V','LED']),
-  ('sf_lamp','Lampe rechargeable','Éclairage d''urgence',12,30,'Home','/images/lamp.png',null),
-  ('sf_fast_charger','Chargeur rapide 20W','Charge express USB-C',9,40,'Mobile & Tech','/images/charger.png',null),
-  ('sf_phone_holder','Support téléphone voiture','Stable, compatible universel',7,25,'Automotive','/images/holder.png',null),
-  ('sf_fan','Ventilateur portable','USB, compact et puissant',14,15,'Lifestyle','/images/fan.png',null),
-  ('sf_jump_starter','Batterie de démarrage','Démarre ta voiture rapidement',58,8,'Automotive','/images/jumpstarter.png',null),
-  ('sf_emergency_light','Lampe d''urgence LED','Signalisation de nuit',10,20,'Automotive','/images/emergency.png',null)
+  ('sf_powerbank','Power bank 20,000 mAh','Recharge ton téléphone partout',18,20,'Mobile & Tech','/images/sf_powerbank.jpg',array['charge rapide','USB-C']),
+  ('sf_compressor','Compresseur portable voiture','Gonfle tes pneus en minutes',25,10,'Automotive','/images/sf_compressor.jpg',array['12V','LED']),
+  ('sf_lamp','Lampe rechargeable','Éclairage d''urgence',12,30,'Home','/images/sf_lamp.jpg',null),
+  ('sf_fast_charger','Chargeur rapide 20W','Charge express USB-C',9,40,'Mobile & Tech','/images/sf_fast_charger.jpg',null),
+  ('sf_phone_holder','Support téléphone voiture','Stable, compatible universel',7,25,'Automotive','/images/sf_phone_holder.jpg',null),
+  ('sf_fan','Ventilateur portable','USB, compact et puissant',14,15,'Lifestyle','/images/sf_fan.jpg',null),
+  ('sf_jump_starter','Batterie de démarrage','Démarre ta voiture rapidement',58,8,'Automotive','/images/sf_jump_starter.jpg',null),
+  ('sf_emergency_light','Lampe d''urgence LED','Signalisation de nuit',10,20,'Automotive','/images/sf_emergency_light.jpg',null)
 on conflict (id) do update
 set name = excluded.name,
     description = excluded.description,

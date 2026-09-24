@@ -4,7 +4,7 @@ import sharp from "sharp";
 import pngToIco from "png-to-ico";
 
 const ROOT = process.cwd();
-const srcSvg = path.join(ROOT, "public/icons/apporte.svg");
+const srcSvg = path.join(ROOT, "public/logo/apporte-app-icon.svg");
 const outDir = path.join(ROOT, "public");
 const iconsDir = path.join(outDir, "icons");
 const splashDir = path.join(outDir, "splash");

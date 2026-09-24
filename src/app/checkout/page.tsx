@@ -41,31 +41,31 @@ export default function CheckoutPage() {
         id: "sf_powerbank",
         name: "Power bank 20,000 mAh",
         priceUsd: 18,
-        imageUrl: "/images/powerbank.png",
+        imageUrl: "/images/sf_powerbank.jpg",
       },
       sf_compressor: {
         id: "sf_compressor",
         name: "Compresseur portable",
         priceUsd: 25,
-        imageUrl: "/images/compressor.png",
+        imageUrl: "/images/sf_compressor.jpg",
       },
       sf_lamp: {
         id: "sf_lamp",
         name: "Lampe rechargeable",
         priceUsd: 12,
-        imageUrl: "/images/lamp.png",
+        imageUrl: "/images/sf_lamp.jpg",
       },
       sf_fast_charger: {
         id: "sf_fast_charger",
         name: "Chargeur rapide 20W",
         priceUsd: 9,
-        imageUrl: "/images/charger.png",
+        imageUrl: "/images/sf_fast_charger.jpg",
       },
       sf_phone_holder: {
         id: "sf_phone_holder",
         name: "Support téléphone",
         priceUsd: 7,
-        imageUrl: "/images/holder.png",
+        imageUrl: "/images/sf_phone_holder.jpg",
       },
     };
     return SMART_FIND_IDS.map((id) => map[id]).slice(0, 3);

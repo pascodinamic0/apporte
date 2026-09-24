@@ -1,0 +1,427 @@
+{
+  "basePath": "/images/",
+  "groups": {
+    "restaurants": [
+      "rest_kfc_gombe",
+      "rest_pili_pili",
+      "rest_chez_flore",
+      "rest_bistrot",
+      "rest_maison_poulet",
+      "rest_pizza_inn",
+      "rest_fuego",
+      "rest_orient",
+      "rest_mamba",
+      "rest_baguette",
+      "rest_sushi",
+      "rest_regal"
+    ],
+    "menu_items": [
+      "mi_kfc_1",
+      "mi_kfc_2",
+      "mi_pili_1",
+      "mi_pili_2",
+      "mi_pizza_1",
+      "mi_pizza_2",
+      "mi_poulet_1",
+      "mi_flore_1",
+      "mi_bistrot_1"
+    ],
+    "smart_find_products": [
+      "sf_powerbank",
+      "sf_compressor",
+      "sf_lamp",
+      "sf_fast_charger",
+      "sf_phone_holder",
+      "sf_fan",
+      "sf_jump_starter",
+      "sf_emergency_light"
+    ],
+    "category_generic": [
+      "burger",
+      "fish",
+      "bistrot",
+      "chicken",
+      "pizza",
+      "sushi",
+      "bread",
+      "powerbank",
+      "compressor",
+      "lamp",
+      "charger",
+      "holder",
+      "fan",
+      "jumpstarter",
+      "emergency"
+    ],
+    "hero_and_map": [
+      "hero-home",
+      "map"
+    ],
+    "empty_states": [
+      "empty-cart",
+      "empty-merchant",
+      "empty-admin",
+      "empty-rider",
+      "empty-orders"
+    ]
+  },
+  "items": {
+    "rest_kfc_gombe": {
+      "file": "rest_kfc_gombe.jpg",
+      "size": "1200x900",
+      "bytes": 121368,
+      "source": "https://www.flickr.com/photos/68147320@N02/35638749852",
+      "license": "CC BY 2.0"
+    },
+    "rest_pili_pili": {
+      "file": "rest_pili_pili.jpg",
+      "size": "1200x900",
+      "bytes": 167788,
+      "source": "https://www.flickr.com/photos/41652235@N00/3794388168",
+      "license": "CC BY 2.0"
+    },
+    "rest_chez_flore": {
+      "file": "rest_chez_flore.jpg",
+      "size": "1200x900",
+      "bytes": 215612,
+      "source": "https://www.pexels.com/photo/37099946/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "rest_bistrot": {
+      "file": "rest_bistrot.jpg",
+      "size": "1200x900",
+      "bytes": 113320,
+      "source": "https://www.flickr.com/photos/34128007@N04/6862364166",
+      "license": "CC BY 2.0"
+    },
+    "rest_maison_poulet": {
+      "file": "rest_maison_poulet.jpg",
+      "size": "1200x900",
+      "bytes": 200481,
+      "source": "https://www.flickr.com/photos/74105777@N00/5906341211",
+      "license": "CC BY 2.0"
+    },
+    "rest_pizza_inn": {
+      "file": "rest_pizza_inn.jpg",
+      "size": "1200x900",
+      "bytes": 156524,
+      "source": "https://www.flickr.com/photos/137643065@N06/23958485809",
+      "license": "CC0 1.0"
+    },
+    "rest_fuego": {
+      "file": "rest_fuego.jpg",
+      "size": "1200x900",
+      "bytes": 155472,
+      "source": "https://www.flickr.com/photos/8047705@N02/5338164338",
+      "license": "CC BY 2.0"
+    },
+    "rest_orient": {
+      "file": "rest_orient.jpg",
+      "size": "1200x900",
+      "bytes": 129051,
+      "source": "https://www.flickr.com/photos/26978304@N08/15553402883",
+      "license": "CC BY 2.0"
+    },
+    "rest_mamba": {
+      "file": "rest_mamba.jpg",
+      "size": "1200x900",
+      "bytes": 101579,
+      "source": "https://www.pexels.com/photo/37100202/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "rest_baguette": {
+      "file": "rest_baguette.jpg",
+      "size": "1200x900",
+      "bytes": 121963,
+      "source": "https://www.flickr.com/photos/7927684@N03/12275580356",
+      "license": "CC BY 2.0"
+    },
+    "rest_sushi": {
+      "file": "rest_sushi.jpg",
+      "size": "1200x900",
+      "bytes": 113794,
+      "source": "https://www.flickr.com/photos/14771153@N04/5644345399",
+      "license": "CC BY 2.0"
+    },
+    "rest_regal": {
+      "file": "rest_regal.jpg",
+      "size": "1200x900",
+      "bytes": 146715,
+      "source": "https://www.pexels.com/photo/37099829/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "mi_kfc_1": {
+      "file": "mi_kfc_1.jpg",
+      "size": "1200x900",
+      "bytes": 107999,
+      "source": "https://www.flickr.com/photos/62558987@N07/16803981651",
+      "license": "CC BY 2.0"
+    },
+    "mi_kfc_2": {
+      "file": "mi_kfc_2.jpg",
+      "size": "1200x900",
+      "bytes": 105355,
+      "source": "https://www.flickr.com/photos/93529274@N00/6157614850",
+      "license": "CC BY 2.0"
+    },
+    "mi_pili_1": {
+      "file": "mi_pili_1.jpg",
+      "size": "1200x900",
+      "bytes": 142716,
+      "source": "https://www.flickr.com/photos/58545726@N02/5815378696",
+      "license": "CC BY 2.0"
+    },
+    "mi_pili_2": {
+      "file": "mi_pili_2.jpg",
+      "size": "1200x900",
+      "bytes": 140400,
+      "source": "https://www.flickr.com/photos/41984492@N00/5947418082",
+      "license": "CC BY 2.0"
+    },
+    "mi_pizza_1": {
+      "file": "mi_pizza_1.jpg",
+      "size": "1200x900",
+      "bytes": 135044,
+      "source": "https://www.flickr.com/photos/54063325@N07/6688627287",
+      "license": "CC BY 2.0"
+    },
+    "mi_pizza_2": {
+      "file": "mi_pizza_2.jpg",
+      "size": "1200x900",
+      "bytes": 167110,
+      "source": "https://www.flickr.com/photos/80093862@N00/3647617987",
+      "license": "CC BY 2.0"
+    },
+    "mi_poulet_1": {
+      "file": "mi_poulet_1.jpg",
+      "size": "1200x900",
+      "bytes": 197694,
+      "source": "https://www.flickr.com/photos/79721788@N00/5282834559",
+      "license": "CC BY 2.0"
+    },
+    "mi_flore_1": {
+      "file": "mi_flore_1.jpg",
+      "size": "1200x900",
+      "bytes": 126734,
+      "source": "https://www.pexels.com/photo/37648017/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "mi_bistrot_1": {
+      "file": "mi_bistrot_1.jpg",
+      "size": "1200x900",
+      "bytes": 100800,
+      "source": "https://www.flickr.com/photos/49215102@N00/3505780217",
+      "license": "CC BY 2.0"
+    },
+    "sf_powerbank": {
+      "file": "sf_powerbank.jpg",
+      "size": "1200x900",
+      "bytes": 71158,
+      "source": "https://www.pexels.com/photo/37475662/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "sf_compressor": {
+      "file": "sf_compressor.jpg",
+      "size": "1200x900",
+      "bytes": 154979,
+      "source": "https://www.flickr.com/photos/188454520@N02/49906791062",
+      "license": "CC BY 2.0"
+    },
+    "sf_lamp": {
+      "file": "sf_lamp.jpg",
+      "size": "1200x900",
+      "bytes": 75902,
+      "source": "https://www.flickr.com/photos/7940758@N07/15144638778",
+      "license": "CC BY 2.0"
+    },
+    "sf_fast_charger": {
+      "file": "sf_fast_charger.jpg",
+      "size": "1200x900",
+      "bytes": 29801,
+      "source": "https://www.pexels.com/photo/4097201/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "sf_phone_holder": {
+      "file": "sf_phone_holder.jpg",
+      "size": "1200x900",
+      "bytes": 61885,
+      "source": "https://www.pexels.com/photo/13536013/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "sf_fan": {
+      "file": "sf_fan.jpg",
+      "size": "1200x900",
+      "bytes": 56962,
+      "source": "https://www.pexels.com/photo/27173714/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "sf_jump_starter": {
+      "file": "sf_jump_starter.jpg",
+      "size": "1200x900",
+      "bytes": 157502,
+      "source": "https://www.flickr.com/photos/37996646802@N01/31300186927",
+      "license": "CC0 1.0"
+    },
+    "sf_emergency_light": {
+      "file": "sf_emergency_light.jpg",
+      "size": "1200x900",
+      "bytes": 39387,
+      "source": "https://www.pexels.com/photo/29340813/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "burger": {
+      "file": "burger.jpg",
+      "size": "1200x900",
+      "bytes": 158390,
+      "source": "https://www.flickr.com/photos/34948727@N00/24498199259",
+      "license": "CC BY 2.0"
+    },
+    "fish": {
+      "file": "fish.jpg",
+      "size": "1200x900",
+      "bytes": 203059,
+      "source": "https://wordpress.org/photos/photo/3096a5bde8/",
+      "license": "CC0 1.0"
+    },
+    "bistrot": {
+      "file": "bistrot.jpg",
+      "size": "1200x900",
+      "bytes": 89978,
+      "source": "https://www.flickr.com/photos/12505664@N00/11032722775",
+      "license": "CC BY 2.0"
+    },
+    "chicken": {
+      "file": "chicken.jpg",
+      "size": "1200x900",
+      "bytes": 219896,
+      "source": "https://www.flickr.com/photos/74105777@N00/5906345163",
+      "license": "CC BY 2.0"
+    },
+    "pizza": {
+      "file": "pizza.jpg",
+      "size": "1200x900",
+      "bytes": 116305,
+      "source": "https://www.flickr.com/photos/125112383@N06/28153453921",
+      "license": "CC BY 2.0"
+    },
+    "sushi": {
+      "file": "sushi.jpg",
+      "size": "1200x900",
+      "bytes": 128468,
+      "source": "https://www.flickr.com/photos/61056459@N05/6380704877",
+      "license": "CC BY 2.0"
+    },
+    "bread": {
+      "file": "bread.jpg",
+      "size": "1200x900",
+      "bytes": 177918,
+      "source": "https://www.flickr.com/photos/11018968@N00/6220277856",
+      "license": "CC BY 2.0"
+    },
+    "powerbank": {
+      "file": "powerbank.jpg",
+      "size": "1200x900",
+      "bytes": 38153,
+      "source": "https://stocksnap.io/photo/powerbank-battery-LPUWSQBPGV",
+      "license": "CC0 1.0"
+    },
+    "compressor": {
+      "file": "compressor.jpg",
+      "size": "1200x900",
+      "bytes": 117959,
+      "source": "https://www.flickr.com/photos/23408922@N07/28522558332",
+      "license": "Public Domain Mark"
+    },
+    "lamp": {
+      "file": "lamp.jpg",
+      "size": "1200x900",
+      "bytes": 145125,
+      "source": "https://www.pexels.com/photo/8397879/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "charger": {
+      "file": "charger.jpg",
+      "size": "1200x900",
+      "bytes": 92135,
+      "source": "https://www.pexels.com/photo/4097204/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "holder": {
+      "file": "holder.jpg",
+      "size": "1200x900",
+      "bytes": 118537,
+      "source": "https://www.pexels.com/photo/7290408/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "fan": {
+      "file": "fan.jpg",
+      "size": "1200x900",
+      "bytes": 111452,
+      "source": "https://www.pexels.com/photo/5850342/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "jumpstarter": {
+      "file": "jumpstarter.jpg",
+      "size": "1200x900",
+      "bytes": 123840,
+      "source": "https://www.flickr.com/photos/37996646802@N01/44422100950",
+      "license": "CC0 1.0"
+    },
+    "emergency": {
+      "file": "emergency.jpg",
+      "size": "1200x900",
+      "bytes": 235528,
+      "source": "https://www.rawpixel.com/image/5921844/free-public-domain-cc0-photo",
+      "license": "CC0 1.0"
+    },
+    "hero-home": {
+      "file": "hero-home.jpg",
+      "size": "1600x1000",
+      "bytes": 220237,
+      "source": "https://www.pexels.com/photo/12725424/",
+      "license": "Pexels License (free commercial use, no attribution required)"
+    },
+    "map": {
+      "file": "map.jpg",
+      "size": "1200x800",
+      "bytes": 95391,
+      "source": "https://www.openstreetmap.org/#map=15/-4.312/15.310",
+      "license": "ODbL 1.0 (data) — attribution \"© OpenStreetMap contributors\" is baked into the image"
+    },
+    "empty-cart": {
+      "file": "empty-cart.png",
+      "size": "800x600",
+      "bytes": 15956,
+      "source": "empty-src/empty-cart.svg (original vector illustration made for Apporte)",
+      "license": "Owned by Apporte"
+    },
+    "empty-merchant": {
+      "file": "empty-merchant.png",
+      "size": "800x600",
+      "bytes": 15297,
+      "source": "empty-src/empty-merchant.svg (original vector illustration made for Apporte)",
+      "license": "Owned by Apporte"
+    },
+    "empty-admin": {
+      "file": "empty-admin.png",
+      "size": "800x600",
+      "bytes": 14826,
+      "source": "empty-src/empty-admin.svg (original vector illustration made for Apporte)",
+      "license": "Owned by Apporte"
+    },
+    "empty-rider": {
+      "file": "empty-rider.png",
+      "size": "800x600",
+      "bytes": 18480,
+      "source": "empty-src/empty-rider.svg (original vector illustration made for Apporte)",
+      "license": "Owned by Apporte"
+    },
+    "empty-orders": {
+      "file": "empty-orders.png",
+      "size": "800x600",
+      "bytes": 16133,
+      "source": "empty-src/empty-orders.svg (original vector illustration made for Apporte)",
+      "license": "Owned by Apporte"
+    }
+  }
+}

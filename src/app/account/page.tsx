@@ -22,6 +22,10 @@ export default async function AccountPage() {
               <Link href="/orders" className="text-emerald-700 underline">
                 Voir mes commandes
               </Link>
+              <span className="mx-2">•</span>
+              <Link href="/credits" className="text-emerald-700 underline">
+                À propos / Crédits photos
+              </Link>
             </div>
           </CardContent>
         </Card>

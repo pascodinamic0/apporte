@@ -119,6 +119,9 @@ export function RiderClient({ riderId }: { riderId: string }) {
         <Card className="mt-4">
           <CardHeader>Nouvelle livraison</CardHeader>
           <CardContent className="grid gap-2 text-sm">
+            <div className="rounded-lg overflow-hidden">
+              <SafeImage src="/images/map.jpg" alt="Carte de Kinshasa" width={1200} height={800} className="h-28 w-full object-cover" />
+            </div>
             {orderCover?.url && (
               <div className="mb-1">
                 <SafeImage

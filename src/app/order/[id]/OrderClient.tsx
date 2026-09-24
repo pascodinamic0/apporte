@@ -67,6 +67,9 @@ export function OrderClient({ orderId }: { orderId: string }) {
   const idx = steps.indexOf(order.status);
   return (
     <>
+      <div className="rounded-lg overflow-hidden mb-2">
+        <img src="/images/map.jpg" alt="Carte de Kinshasa" className="h-28 w-full object-cover" />
+      </div>
       <h1 className="text-xl font-semibold mb-2">Commande #{order.id.slice(-6)}</h1>
       <div className="text-sm text-gray-600 mb-2">
         Total: {formatPriceUSD(order.totalUsd)} • Paiement: {order.paymentMethod}

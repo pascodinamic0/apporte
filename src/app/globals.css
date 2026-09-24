@@ -3,9 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --brand: #047857; /* emerald-700 */
-  --brand-600: #059669;
-  --brand-800: #065f46;
+  --brand-start: #12b886;
+  --brand-end: #0b7f62;
+  --brand: #0b7f62; /* main */
+  --brand-600: #0d9b77;
+  --brand-800: #0a6b52;
   --radius: 12px;
   --shadow: 0 4px 16px rgba(0,0,0,0.06);
 }
@@ -42,8 +44,8 @@ a:hover {
 }
 
 .brand-gradient {
-  background-image: radial-gradient(1200px 600px at 10% 10%, rgba(4,120,87,0.15), transparent),
-    radial-gradient(800px 400px at 90% 20%, rgba(5,150,105,0.12), transparent),
+  background-image: radial-gradient(1200px 600px at 10% 10%, color-mix(in oklab, var(--brand-start) 20%, transparent), transparent),
+    radial-gradient(800px 400px at 90% 20%, color-mix(in oklab, var(--brand-end) 18%, transparent), transparent),
     linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 

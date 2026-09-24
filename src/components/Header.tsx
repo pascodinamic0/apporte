@@ -12,8 +12,7 @@ export async function Header() {
       >
         <Link href="/" className="flex items-center gap-2 text-emerald-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/apporte.svg" alt="" className="h-8 w-8" />
-          <span className="font-extrabold tracking-tight text-xl">Apporte</span>
+          <img src="/logo/apporte-lockup.svg" alt="Apporte" className="h-8" />
         </Link>
         {role === "customer" ? (
           <nav className="hidden gap-6 md:flex text-sm text-gray-700">
