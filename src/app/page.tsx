@@ -7,6 +7,7 @@ import { Utensils, Package, ShoppingCart } from "lucide-react";
 import { getCurrentUser } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
 import { Stagger } from "@/src/components/Stagger";
+import { StarRating } from "@/src/components/StarRating";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -27,6 +28,15 @@ export default async function Home() {
         <p className="mt-1 text-gray-700">
           Restaurants, gadgets et petits besoins. Commande en quelques taps.
         </p>
+        <div className="mt-3">
+          <SafeImage
+            src="/images/hero-home.png"
+            alt="Hero"
+            width={1200}
+            height={320}
+            className="h-20 w-full rounded-lg object-cover"
+          />
+        </div>
         <div className="mt-4 flex gap-2">
           <Link href="/food">
             <Button className="gap-2 whitespace-nowrap">
@@ -67,7 +77,7 @@ export default async function Home() {
                     <div className="text-sm text-gray-600">{r.cuisine}</div>
                   </div>
                   <div className="text-xs rounded-full bg-emerald-50 text-emerald-800 px-2 py-1">
-                    {r.etaMinutes} min • {r.rating.toFixed(1)}★
+                    {r.etaMinutes} min
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -78,6 +88,7 @@ export default async function Home() {
                     height={320}
                     className="h-28 w-full rounded-lg object-cover"
                   />
+                  <div className="mt-2"><StarRating value={r.rating} /></div>
                 </CardContent>
               </Card>
             </Link>

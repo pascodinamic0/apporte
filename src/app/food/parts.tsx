@@ -7,6 +7,7 @@ import { Badge } from "@/src/components/ui/badge";
 import { Input } from "@/src/components/ui/input";
 import type { Restaurant } from "@/src/lib/types";
 import { Stagger } from "@/src/components/Stagger";
+import { StarRating } from "@/src/components/StarRating";
 
 export function RestaurantGrid({
   restaurants,
@@ -89,7 +90,7 @@ export function RestaurantGrid({
                   >
                     {r.isOpen ? "Ouvert" : "Fermé"}
                   </Badge>
-                  <span>{r.zone}</span>
+                  <StarRating value={r.rating} />
                 </div>
               </CardContent>
             </Card>

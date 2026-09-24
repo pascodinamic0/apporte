@@ -34,19 +34,28 @@ export default async function MerchantHome() {
   const orders = await listOrdersForRestaurant(rid);
   return (
     <div className="py-2">
-      <div className="rounded-xl overflow-hidden mb-3">
-        <SafeImage src={rest.imageUrl} alt={rest.name} width={1200} height={480} className="h-32 w-full object-cover" />
+      <div className="rounded-xl overflow-hidden mb-2">
+        <SafeImage src={rest.imageUrl} alt={rest.name} width={1200} height={320} className="h-20 w-full object-cover" />
       </div>
-      <div className="flex items-baseline justify-between mb-3">
-        <h1 className="text-xl font-semibold">{rest.name} — Commandes</h1>
-        <div className="text-sm flex gap-3">
-          <Link href="/merchant/menu" className="text-emerald-700 underline">
-            Gérer le menu
-          </Link>
-          <Link href="/merchant/stats" className="text-emerald-700 underline">
-            Stats
-          </Link>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-lg font-semibold">{rest.name}</h1>
+        <div className="flex gap-2">
+          <Link href="/merchant/menu"><button className="h-9 px-3 rounded-md border text-sm">Gérer le menu</button></Link>
+          <Link href="/merchant/stats"><button className="h-9 px-3 rounded-md border text-sm">Stats</button></Link>
         </div>
+      </div>
+      <div className="flex gap-2 mb-3 overflow-x-auto">
+        {[
+          { key: "new", label: "Nouvelles" },
+          { key: "preparing", label: "En préparation" },
+          { key: "ready", label: "Prêtes" },
+        ].map((t) => (
+          <form key={t.key} action={async () => { "use server"; }}>
+            <button type="button" className="rounded-full border px-3 py-1 text-sm whitespace-nowrap bg-white border-gray-200 text-gray-700">
+              {t.label}
+            </button>
+          </form>
+        ))}
       </div>
       <div className="grid gap-3">
         {orders.length === 0 && (

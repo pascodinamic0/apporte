@@ -21,6 +21,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [orderCover, setOrderCover] = useState<{ url?: string; name?: string } | null>(null);
+  const [orderInfo, setOrderInfo] = useState<any | null>(null);
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -41,6 +42,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
         const o = data.order;
         const cover = o?.items?.[0]?.imageUrl || null;
         setOrderCover(cover ? { url: cover, name: o?.items?.[0]?.name } : null);
+        setOrderInfo(o);
       } catch {
         setOrderCover(null);
       }
@@ -128,6 +130,12 @@ export function RiderClient({ riderId }: { riderId: string }) {
                 />
               </div>
             )}
+            {orderInfo && (
+              <div className="rounded-lg bg-gray-50 p-3">
+                <div className="font-medium">{orderInfo.restaurantId ? "Restaurant" : "Achat Trouvailles"}</div>
+                <div className="text-gray-700">{orderInfo.address}</div>
+              </div>
+            )}
             <div>Pickup: {offer.pickupDistanceKm} km</div>
             <div>Livraison: {offer.deliveryDistanceKm} km</div>
             <div>Temps estimé: {offer.etaMinutes} min</div>
@@ -146,20 +154,23 @@ export function RiderClient({ riderId }: { riderId: string }) {
         <Card className="mt-4">
           <CardHeader>Livraison en cours #{orderId.slice(-6)}</CardHeader>
           <CardContent className="grid gap-2">
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => act("going")}>
-                Vers pickup
-              </Button>
-              <Button variant="outline" onClick={() => act("arrived")}>
-                Arrivé
-              </Button>
-              <Button variant="outline" onClick={() => act("picked_up")}>
-                Récupéré
-              </Button>
-              <Button variant="outline" onClick={() => act("delivering")}>
-                En livraison
-              </Button>
-            </div>
+            {orderInfo && (
+              <div className="rounded-lg bg-gray-50 p-3">
+                <div className="font-medium">Adresse client</div>
+                <div className="text-gray-700">{orderInfo.address}</div>
+              </div>
+            )}
+            <Button onClick={() => {
+              // Compute next step based on rough progression
+              const s = orderInfo?.status;
+              if (s === "rider_assigned") act("going");
+              else if (s === "going_to_restaurant") act("arrived");
+              else if (s === "arrived") act("picked_up");
+              else if (s === "picked_up") act("delivering");
+              else act("delivering");
+            }}>
+              Étape suivante
+            </Button>
             <div className="flex items-center gap-2">
               <input
                 className="h-10 w-28 rounded-md border border-gray-300 px-2"

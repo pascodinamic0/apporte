@@ -62,12 +62,12 @@ export default function DemoPage() {
               <Button onClick={() => login(u.id)} disabled={loggingIn === u.id}>
                 {loggingIn === u.id ? "Connexion..." : "Se connecter"}
               </Button>
-              <div className="text-sm text-gray-600">
-                {u.role === "customer" && "Aller à Accueil"}
-                {u.role === "merchant" && "Aller à /merchant"}
-                {u.role === "rider" && "Aller à /rider"}
-                {u.role === "admin" && "Aller à /admin"}
-              </div>
+            <div className="text-sm text-gray-600">
+                {u.role === "customer" && "Aller à l’accueil"}
+                {u.role === "merchant" && "Ouvrir l’espace commerçant"}
+                {u.role === "rider" && "Ouvrir l’espace livreur"}
+                {u.role === "admin" && "Ouvrir l’espace admin"}
+            </div>
             </CardContent>
           </Card>
         ))}

@@ -29,6 +29,23 @@ export default async function AdminPage() {
   const sod = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const completedToday = orders.filter((o) => o.status === "delivered" && o.createdAt >= sod).length;
   const cancelledToday = orders.filter((o) => o.status === "cancelled" && o.createdAt >= sod).length;
+  // Sparkline for orders per hour
+  const byHour: Record<number, number> = {};
+  const today2 = new Date();
+  const sod2 = new Date(today2.getFullYear(), today2.getMonth(), today2.getDate()).getTime();
+  for (const o of orders.filter((o) => o.createdAt >= sod2)) {
+    const h = new Date(o.createdAt).getHours();
+    byHour[h] = (byHour[h] || 0) + 1;
+  }
+  const points = Array.from({ length: 24 }, (_, h) => byHour[h] || 0);
+  const max = Math.max(1, ...points);
+  const path = points
+    .map((v, i) => {
+      const x = (i / 23) * 140;
+      const y = 40 - (v / max) * 40;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
   return (
     <div className="py-2">
       <h1 className="text-xl font-semibold mb-3">Admin</h1>
@@ -37,6 +54,15 @@ export default async function AdminPage() {
         <Stat title="Annulations (aujourd’hui)" value={String(cancelledToday)} />
         <Stat title="Livreurs en ligne" value={String(riders.filter((r) => r.status === "online").length)} />
       </div>
+      <Card className="mt-3">
+        <CardHeader className="text-sm text-gray-600">Tendance des commandes (par heure)</CardHeader>
+        <CardContent>
+          <svg width="100%" height="60" viewBox="0 0 140 60" preserveAspectRatio="none">
+            <path d={`${path}`} stroke="#047857" strokeWidth="2" fill="none" />
+            <line x1="0" y1="40" x2="140" y2="40" stroke="#e5e7eb" />
+          </svg>
+        </CardContent>
+      </Card>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
           <ListCard title="Commandes récentes">
           <Stagger>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import { Button } from "@/src/components/ui/button";
 
 export default function SupportPage() {
   return (
@@ -11,11 +12,8 @@ export default function SupportPage() {
           <p className="text-sm text-gray-700">
             Contacte-nous sur WhatsApp pour l’assistance:
           </p>
-          <Link
-            href="https://wa.me/243000000000?text=Bonjour%20Apporte%2C%20j%27ai%20besoin%20d%27aide%20avec%20ma%20commande."
-            className="text-emerald-700 underline"
-          >
-            Ouvrir WhatsApp
+          <Link href="https://wa.me/243000000000?text=Bonjour%20Apporte%2C%20j%27ai%20besoin%20d%27aide%20avec%20ma%20commande.">
+            <Button variant="outline" className="w-full">Ouvrir WhatsApp</Button>
           </Link>
           <div className="mt-4">
             <div className="font-medium">FAQ (bientôt)</div>
