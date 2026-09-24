@@ -7,15 +7,8 @@ import { RoleBottomNav } from "@/src/components/RoleBottomNav";
 import { Providers } from "@/src/components/Providers";
 import { CartBar } from "@/src/components/CartBar";
 import { getCurrentUser } from "@/src/lib/auth";
-import dynamic from "next/dynamic";
-
-const Splash = dynamic(() => import("@/src/components/Splash").then((m) => m.Splash), {
-  ssr: false,
-});
-const PageTransition = dynamic(
-  () => import("@/src/components/PageTransition").then((m) => m.PageTransition),
-  { ssr: false },
-);
+import { Splash } from "@/src/components/Splash";
+import { PageTransition } from "@/src/components/PageTransition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

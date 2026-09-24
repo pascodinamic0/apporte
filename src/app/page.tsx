@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { getRestaurants, listSmartFinds } from "@/src/lib/data/db";
@@ -68,9 +69,19 @@ export default async function Home() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-28 w-full rounded-lg brand-gradient flex items-center justify-center text-3xl">
-                    🍽️
-                  </div>
+                  {r.imageUrl ? (
+                    <Image
+                      src={r.imageUrl}
+                      alt={r.name}
+                      width={640}
+                      height={320}
+                      className="h-28 w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="h-28 w-full rounded-lg brand-gradient flex items-center justify-center text-3xl">
+                      🍽️
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </Link>
@@ -90,9 +101,19 @@ export default async function Home() {
             <Card key={p.id} className="hover:shadow transition-shadow">
               <CardHeader className="font-medium">{p.name}</CardHeader>
               <CardContent>
-                <div className="h-20 w-full rounded-lg brand-gradient flex items-center justify-center text-2xl">
-                  📦
-                </div>
+                {p.imageUrl ? (
+                  <Image
+                    src={p.imageUrl}
+                    alt={p.name}
+                    width={480}
+                    height={240}
+                    className="h-20 w-full rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="h-20 w-full rounded-lg brand-gradient flex items-center justify-center text-2xl">
+                    📦
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
@@ -67,11 +68,33 @@ export function RestaurantGrid({
                   {r.etaMinutes} min • {r.rating.toFixed(1)}★
                 </div>
               </CardHeader>
-              <CardContent className="flex items-center justify-between text-sm text-gray-600">
-                <Badge variant="outline" className={r.isOpen ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}>
-                  {r.isOpen ? "Ouvert" : "Fermé"}
-                </Badge>
-                <div className="text-2xl">🍽️</div>
+              <CardContent className="text-sm text-gray-600">
+                {r.imageUrl ? (
+                  <Image
+                    src={r.imageUrl}
+                    alt={r.name}
+                    width={640}
+                    height={320}
+                    className="h-32 w-full rounded-lg object-cover mb-2"
+                  />
+                ) : (
+                  <div className="h-32 w-full rounded-lg brand-gradient flex items-center justify-center text-3xl mb-2">
+                    🍽️
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <Badge
+                    variant="outline"
+                    className={
+                      r.isOpen
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                    }
+                  >
+                    {r.isOpen ? "Ouvert" : "Fermé"}
+                  </Badge>
+                  <span>{r.zone}</span>
+                </div>
               </CardContent>
             </Card>
           </Link>
