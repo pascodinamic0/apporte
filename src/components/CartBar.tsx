@@ -17,7 +17,10 @@ export function CartBar() {
     pathname.startsWith("/checkout");
   if (hide || items.length === 0) return null;
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-50 md:bottom-4">
+    <div
+      className="fixed left-0 right-0 z-50"
+      style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
+    >
       <div className="mx-auto max-w-5xl px-4">
         <Link
           href="/cart"

@@ -15,15 +15,15 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       {
         src: "/icons/apporte.svg",
-        sizes: "192x192",
+        sizes: "any",
         type: "image/svg+xml",
-        purpose: "any",
+        purpose: "any maskable",
       },
       {
         src: "/icons/apporte.svg",
-        sizes: "512x512",
+        sizes: "any",
         type: "image/svg+xml",
-        purpose: "any",
+        purpose: "any maskable",
       },
     ],
   };

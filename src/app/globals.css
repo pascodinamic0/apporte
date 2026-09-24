@@ -51,3 +51,65 @@ a:hover {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
+
+/* ---- Mobile fit & PWA safe-area support ---- */
+:root {
+  /* Safe area variables with fallbacks */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Global resets for consistent mobile behavior */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  overflow-x: hidden; /* avoid horizontal scroll on narrow devices */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prefer dynamic viewport units for PWAs */
+.min-h-dvh {
+  min-height: 100dvh;
+}
+
+/* iOS momentum/overscroll control */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Safe area helpers */
+.safe-top {
+  padding-top: max(var(--safe-top), 0px);
+}
+.safe-bottom {
+  padding-bottom: max(var(--safe-bottom), 0px);
+}
+.inset-safe {
+  padding-top: max(var(--safe-top), 0px);
+  padding-right: max(var(--safe-right), 0px);
+  padding-bottom: max(var(--safe-bottom), 0px);
+  padding-left: max(var(--safe-left), 0px);
+}
+
+/* Ensure tappable sizes and no auto-zoom on iOS */
+input,
+select,
+textarea,
+button {
+  font-size: 16px; /* prevent iOS zoom */
+}
+
+/* Sane media behavior */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}

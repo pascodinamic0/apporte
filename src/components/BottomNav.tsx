@@ -19,8 +19,12 @@ export function BottomNav() {
     return null;
   }
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 md:hidden">
-      <ul className="flex items-center justify-around py-2">
+    <nav
+      role="navigation"
+      aria-label="Navigation principale"
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 md:hidden safe-bottom"
+    >
+      <ul className="flex items-center justify-around py-2 min-h-16">
         {items.map((it) => {
           const Icon = it.icon;
           const active = pathname === it.href;
@@ -29,11 +33,11 @@ export function BottomNav() {
               <Link
                 href={it.href}
                 className={cn(
-                  "flex flex-col items-center text-xs",
-                  active ? "text-emerald-700" : "text-gray-600",
+                  "flex flex-col items-center text-[11px] leading-none px-2 py-1.5",
+                  active ? "text-emerald-700 font-medium" : "text-gray-700",
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon aria-hidden className="h-5 w-5" />
                 <span className="mt-1">{it.label}</span>
               </Link>
             </li>

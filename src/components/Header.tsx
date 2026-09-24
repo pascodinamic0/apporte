@@ -6,7 +6,7 @@ export async function Header() {
   const role = user?.role ?? "customer";
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/70 backdrop-blur">
-      <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+      <div className="mx-auto max-w-5xl px-4 safe-top py-2 sm:py-3 flex items-center justify-between">
         <Link href="/" className="font-bold text-emerald-800 text-lg">
           Apporte
         </Link>
