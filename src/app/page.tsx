@@ -6,6 +6,7 @@ import { getRestaurants, listSmartFinds } from "@/src/lib/data/db";
 import { Utensils, Package, ShoppingCart } from "lucide-react";
 import { getCurrentUser } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
+import { Stagger } from "@/src/components/Stagger";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -56,6 +57,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Stagger>
           {restaurants.map((r) => (
             <Link href={`/restaurant/${r.id}`} key={r.id}>
               <Card className="hover:shadow transition-shadow">
@@ -86,6 +88,7 @@ export default async function Home() {
               </Card>
             </Link>
           ))}
+          </Stagger>
         </div>
       </section>
 
@@ -97,6 +100,7 @@ export default async function Home() {
           </Link>
         </div>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <Stagger delayBase={0.05}>
           {products.map((p) => (
             <Card key={p.id} className="hover:shadow transition-shadow">
               <CardHeader className="font-medium">{p.name}</CardHeader>
@@ -117,6 +121,7 @@ export default async function Home() {
               </CardContent>
             </Card>
           ))}
+          </Stagger>
         </div>
       </section>
     </div>

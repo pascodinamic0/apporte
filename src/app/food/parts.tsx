@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
 import { Input } from "@/src/components/ui/input";
 import type { Restaurant } from "@/src/lib/types";
+import { Stagger } from "@/src/components/Stagger";
 
 export function RestaurantGrid({
   restaurants,
@@ -56,6 +57,7 @@ export function RestaurantGrid({
         ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2 mt-2">
+        <Stagger>
         {filtered.map((r) => (
           <Link href={`/restaurant/${r.id}`} key={r.id}>
             <Card className="hover:shadow transition-shadow">
@@ -99,6 +101,7 @@ export function RestaurantGrid({
             </Card>
           </Link>
         ))}
+        </Stagger>
         {filtered.length === 0 && (
           <div className="text-gray-600">Aucun restaurant ne correspond à ta recherche.</div>
         )}
