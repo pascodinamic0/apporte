@@ -73,6 +73,9 @@ async function main() {
   await generateSplash(srcSvg, 1290, 2796, "apple-splash-1290x2796.png"); // iPhone 15 Pro Max
   await generateSplash(srcSvg, 1170, 2532, "apple-splash-1170x2532.png"); // iPhone 13/14
   await generateSplash(srcSvg, 750, 1334, "apple-splash-750x1334.png"); // iPhone SE (2/3)
+  await generateSplash(srcSvg, 1179, 2556, "apple-splash-1179x2556.png"); // 393x852@3
+  await generateSplash(srcSvg, 1206, 2622, "apple-splash-1206x2622.png"); // 402x874@3
+  await generateSplash(srcSvg, 1320, 2868, "apple-splash-1320x2868.png"); // 440x956@3
 
   console.log("Icons generated:", { icon192, icon512, maskable512, apple180, fav32, fav16 });
 }

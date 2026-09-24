@@ -2,7 +2,8 @@ import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/l
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
-import Image from "next/image";
+import { statusLabelFr } from "@/src/lib/utils";
+import { SafeImage } from "@/src/components/SafeImage";
 import { Stagger } from "@/src/components/Stagger";
 
 export const dynamic = "force-dynamic";
@@ -37,14 +38,14 @@ export default async function AdminPage() {
         <Stat title="Livreurs en ligne" value={String(riders.filter((r) => r.status === "online").length)} />
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <ListCard title="Commandes récentes">
+          <ListCard title="Commandes récentes">
           <Stagger>
           {orders.slice(0, 8).map((o) => (
             <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
               <div className="truncate">
-                #{o.id.slice(-6)} • {o.zone} • {o.items.length} items
+                #{o.id.slice(-6)} • {o.zone} • {o.items.length} article{ o.items.length>1 ? "s" : "" }
               </div>
-              <div className="text-xs rounded-full bg-gray-100 px-2 py-1 capitalize">{o.status}</div>
+              <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{statusLabelFr(o.status)}</div>
             </Link>
           ))}
           </Stagger>
@@ -64,11 +65,7 @@ export default async function AdminPage() {
           {merchants.map((m) => (
             <div key={m.id} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                {m.imageUrl ? (
-                  <Image src={m.imageUrl} alt={m.name} width={32} height={20} className="h-8 w-12 rounded object-cover" />
-                ) : (
-                  <div className="h-8 w-12 rounded brand-gradient flex items-center justify-center">🍽️</div>
-                )}
+                <SafeImage src={m.imageUrl} alt={m.name} width={32} height={20} className="h-8 w-12 rounded object-cover" />
                 <div>{m.name}</div>
               </div>
               <div className="text-xs text-gray-600">{m.cuisine}</div>

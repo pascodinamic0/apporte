@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
@@ -35,10 +35,10 @@ export function RestaurantGrid({
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 flex-nowrap">
         <button
           onClick={() => setActiveCuisine("")}
-          className={`rounded-full border px-3 py-1 text-sm ${
+          className={`rounded-full border px-3 py-1 text-sm whitespace-nowrap ${
             !activeCuisine ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-white border-gray-200 text-gray-700"
           }`}
         >
@@ -48,7 +48,7 @@ export function RestaurantGrid({
           <button
             key={c}
             onClick={() => setActiveCuisine(c)}
-            className={`rounded-full border px-3 py-1 text-sm ${
+            className={`rounded-full border px-3 py-1 text-sm whitespace-nowrap ${
               activeCuisine === c ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-white border-gray-200 text-gray-700"
             }`}
           >
@@ -71,19 +71,13 @@ export function RestaurantGrid({
                 </div>
               </CardHeader>
               <CardContent className="text-sm text-gray-600">
-                {r.imageUrl ? (
-                  <Image
-                    src={r.imageUrl}
-                    alt={r.name}
-                    width={640}
-                    height={320}
-                    className="h-32 w-full rounded-lg object-cover mb-2"
-                  />
-                ) : (
-                  <div className="h-32 w-full rounded-lg brand-gradient flex items-center justify-center text-3xl mb-2">
-                    🍽️
-                  </div>
-                )}
+                <SafeImage
+                  src={r.imageUrl}
+                  alt={r.name}
+                  width={640}
+                  height={320}
+                  className="h-32 w-full rounded-lg object-cover mb-2"
+                />
                 <div className="flex items-center justify-between">
                   <Badge
                     variant="outline"

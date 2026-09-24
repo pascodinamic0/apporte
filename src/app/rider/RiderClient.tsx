@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
+import toast from "react-hot-toast";
 
 type Offer = {
   orderId: string;
@@ -56,8 +57,14 @@ export function RiderClient({ riderId }: { riderId: string }) {
   }
 
   async function act(action: string) {
-    if (!orderId && action !== "accept" && action !== "decline") return;
-    const payload: any = { action, riderId, orderId };
+    // For accept/decline, use the current offer id when orderId is not yet set
+    const effectiveOrderId = orderId ?? offer?.orderId ?? null;
+    if (!effectiveOrderId && action !== "accept" && action !== "decline") return;
+    if ((action === "accept" || action === "decline") && !effectiveOrderId) {
+      toast.error("Aucune course à traiter.");
+      return;
+    }
+    const payload: any = { action, riderId, orderId: effectiveOrderId };
     if (action === "delivered") payload.pin = pin;
     const r = await fetch("/api/dispatch/offer", {
       method: "POST",
@@ -65,6 +72,10 @@ export function RiderClient({ riderId }: { riderId: string }) {
       body: JSON.stringify(payload),
     });
     const data = await r.json();
+    if (!data.ok && action !== "delivered") {
+      toast.error("Action non prise en compte. Réessaie.");
+      return;
+    }
     if (action === "accept" && offer) {
       setOrderId(offer.orderId);
       setOffer(null);
@@ -75,6 +86,12 @@ export function RiderClient({ riderId }: { riderId: string }) {
       setOrderId(null);
       setStatus("online");
       setPin("");
+    } else if (action === "delivered" && !data.delivered?.ok) {
+      if (data.delivered?.reason === "bad_pin") {
+        toast.error("PIN incorrect.");
+      } else {
+        toast.error("Impossible de terminer la course.");
+      }
     }
   }
 
@@ -84,17 +101,11 @@ export function RiderClient({ riderId }: { riderId: string }) {
       <Card>
         <CardHeader>Statut</CardHeader>
         <CardContent className="flex gap-2">
-          <Button
-            variant={status === "offline" ? "secondary" : "outline"}
-            onClick={() => setRiderStatus("offline")}
-          >
-            Offline
+          <Button variant={status === "offline" ? "secondary" : "outline"} onClick={() => setRiderStatus("offline")}>
+            Hors ligne
           </Button>
-          <Button
-            variant={status === "online" ? "secondary" : "outline"}
-            onClick={() => setRiderStatus("online")}
-          >
-            Online
+          <Button variant={status === "online" ? "secondary" : "outline"} onClick={() => setRiderStatus("online")}>
+            En ligne
           </Button>
           <Button variant="outline" disabled>
             {status === "busy" ? "Occupé" : "Libre"}
@@ -108,7 +119,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
           <CardContent className="grid gap-2 text-sm">
             {orderCover?.url && (
               <div className="mb-1">
-                <Image
+                <SafeImage
                   src={orderCover.url}
                   alt={orderCover.name || "Article"}
                   width={320}
@@ -121,8 +132,8 @@ export function RiderClient({ riderId }: { riderId: string }) {
             <div>Livraison: {offer.deliveryDistanceKm} km</div>
             <div>Temps estimé: {offer.etaMinutes} min</div>
             <div>Gain: ${offer.earningsUsd.toFixed(2)}</div>
-            <div className="flex gap-2 mt-2">
-              <Button onClick={() => act("accept")}>Accepter</Button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <Button className="col-span-2" onClick={() => act("accept")}>Accepter</Button>
               <Button variant="outline" onClick={() => act("decline")}>
                 Refuser
               </Button>
@@ -135,7 +146,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
         <Card className="mt-4">
           <CardHeader>Livraison en cours #{orderId.slice(-6)}</CardHeader>
           <CardContent className="grid gap-2">
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => act("going")}>
                 Vers pickup
               </Button>

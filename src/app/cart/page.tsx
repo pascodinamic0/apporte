@@ -4,7 +4,7 @@ import { useCartStore } from "@/src/store/cart";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
 
 export default function CartPage() {
   const { items, clear, removeItem } = useCartStore();
@@ -40,11 +40,7 @@ export default function CartPage() {
               </div>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
-              {i.imageUrl ? (
-                <Image src={i.imageUrl} alt={i.name} width={160} height={100} className="h-20 w-40 rounded-md object-cover" />
-              ) : (
-                <div className="h-20 w-40 rounded-md brand-gradient flex items-center justify-center text-2xl">🧺</div>
-              )}
+              <SafeImage src={i.imageUrl} alt={i.name} width={160} height={100} className="h-20 w-40 rounded-md object-cover" />
               <Button variant="outline" onClick={() => removeItem(i.id)}>
                 Retirer
               </Button>

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
 import { getMenuForRestaurant, getRestaurant } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
@@ -18,16 +18,13 @@ export default async function RestaurantPage({
   return (
     <div className="py-2">
       <div className="rounded-xl overflow-hidden">
-        {r.imageUrl ? (
-          <Image
-            src={r.imageUrl}
-            alt={r.name}
-            width={1200}
-            height={600}
-            className="h-40 w-full object-cover"
-            priority
-          />
-        ) : null}
+        <SafeImage
+          src={r.imageUrl}
+          alt={r.name}
+          width={1200}
+          height={600}
+          className="h-40 w-full object-cover"
+        />
       </div>
       <h1 className="text-2xl font-semibold mt-3">{r.name}</h1>
       <div className="text-sm text-gray-600 mb-4">
@@ -44,19 +41,13 @@ export default async function RestaurantPage({
               <div className="text-emerald-800 font-medium">{formatPriceUSD(m.priceUsd)}</div>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
-              {m.imageUrl ? (
-                <Image
-                  src={m.imageUrl}
-                  alt={m.name}
-                  width={640}
-                  height={320}
-                  className="h-24 w-36 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="h-24 w-36 rounded-lg brand-gradient flex items-center justify-center text-2xl">
-                  🍽️
-                </div>
-              )}
+              <SafeImage
+                src={m.imageUrl}
+                alt={m.name}
+                width={640}
+                height={320}
+                className="h-24 w-36 rounded-lg object-cover"
+              />
               <AddToCartButton menuItem={m} restaurantId={r.id} />
             </CardContent>
           </Card>

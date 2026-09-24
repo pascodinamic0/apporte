@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { getRestaurants, listSmartFinds } from "@/src/lib/data/db";
@@ -29,13 +29,13 @@ export default async function Home() {
         </p>
         <div className="mt-4 flex gap-2">
           <Link href="/food">
-            <Button className="gap-2">
+            <Button className="gap-2 whitespace-nowrap">
               <Utensils className="h-4 w-4" />
               Découvrir à manger
             </Button>
           </Link>
           <Link href="/smart-finds">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2 whitespace-nowrap">
               <Package className="h-4 w-4" />
               Trouvailles
             </Button>
@@ -71,19 +71,13 @@ export default async function Home() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {r.imageUrl ? (
-                    <Image
-                      src={r.imageUrl}
-                      alt={r.name}
-                      width={640}
-                      height={320}
-                      className="h-28 w-full rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="h-28 w-full rounded-lg brand-gradient flex items-center justify-center text-3xl">
-                      🍽️
-                    </div>
-                  )}
+                  <SafeImage
+                    src={r.imageUrl}
+                    alt={r.name}
+                    width={640}
+                    height={320}
+                    className="h-28 w-full rounded-lg object-cover"
+                  />
                 </CardContent>
               </Card>
             </Link>
@@ -105,19 +99,13 @@ export default async function Home() {
             <Card key={p.id} className="hover:shadow transition-shadow">
               <CardHeader className="font-medium">{p.name}</CardHeader>
               <CardContent>
-                {p.imageUrl ? (
-                  <Image
-                    src={p.imageUrl}
-                    alt={p.name}
-                    width={480}
-                    height={240}
-                    className="h-20 w-full rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="h-20 w-full rounded-lg brand-gradient flex items-center justify-center text-2xl">
-                    📦
-                  </div>
-                )}
+                <SafeImage
+                  src={p.imageUrl}
+                  alt={p.name}
+                  width={480}
+                  height={240}
+                  className="h-20 w-full rounded-lg object-cover"
+                />
               </CardContent>
             </Card>
           ))}

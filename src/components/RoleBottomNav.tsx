@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 
 type Item = { href: string; label: string; icon: any };
+type Role = "merchant" | "rider" | "admin";
 
-function useRoleNavItems(pathname: string): Item[] | null {
-  if (pathname.startsWith("/merchant")) {
+function itemsForRole(role: Role): Item[] {
+  if (role === "merchant") {
     return [
       { href: "/merchant", label: "Commandes", icon: ClipboardList },
       { href: "/merchant/menu", label: "Menu", icon: Utensils },
@@ -23,27 +24,26 @@ function useRoleNavItems(pathname: string): Item[] | null {
       { href: "/demo", label: "Rôle", icon: User },
     ];
   }
-  if (pathname.startsWith("/rider")) {
+  if (role === "rider") {
     return [
       { href: "/rider", label: "Courses", icon: Bike },
       { href: "/support", label: "Support", icon: LifeBuoy },
       { href: "/demo", label: "Rôle", icon: User },
     ];
   }
-  if (pathname.startsWith("/admin")) {
+  if (role === "admin") {
     return [
       { href: "/admin", label: "Accueil", icon: Home },
       { href: "/support", label: "Support", icon: LifeBuoy },
       { href: "/demo", label: "Rôle", icon: User },
     ];
   }
-  return null;
+  return [];
 }
 
-export function RoleBottomNav() {
+export function RoleBottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
-  const items = useRoleNavItems(pathname);
-  if (!items) return null;
+  const items = itemsForRole(role);
   return (
     <nav
       role="navigation"

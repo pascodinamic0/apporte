@@ -9,7 +9,7 @@ const items = [
   { href: "/food", label: "Nourriture", icon: Utensils },
   { href: "/smart-finds", label: "Trouvailles", icon: Package },
   { href: "/cart", label: "Panier", icon: ShoppingCart },
-  { href: "/demo", label: "Compte-Démo", icon: User },
+  { href: "/account", label: "Compte", icon: User },
 ];
 
 export function BottomNav() {

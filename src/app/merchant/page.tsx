@@ -8,10 +8,10 @@ import {
   merchantSetReady,
 } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
-import Image from "next/image";
+import { SafeImage } from "@/src/components/SafeImage";
 import { Stagger } from "@/src/components/Stagger";
 import { Button } from "@/src/components/ui/button";
-import { formatPriceUSD } from "@/src/lib/utils";
+import { formatPriceUSD, statusLabelFr } from "@/src/lib/utils";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +34,9 @@ export default async function MerchantHome() {
   const orders = await listOrdersForRestaurant(rid);
   return (
     <div className="py-2">
-      {rest.imageUrl && (
-        <div className="rounded-xl overflow-hidden mb-3">
-          <Image src={rest.imageUrl} alt={rest.name} width={1200} height={480} className="h-32 w-full object-cover" />
-        </div>
-      )}
+      <div className="rounded-xl overflow-hidden mb-3">
+        <SafeImage src={rest.imageUrl} alt={rest.name} width={1200} height={480} className="h-32 w-full object-cover" />
+      </div>
       <div className="flex items-baseline justify-between mb-3">
         <h1 className="text-xl font-semibold">{rest.name} — Commandes</h1>
         <div className="text-sm flex gap-3">
@@ -68,22 +66,18 @@ export default async function MerchantHome() {
                   {o.items.length} article(s) • {formatPriceUSD(o.totalUsd)} • {o.zone}
                 </div>
               </div>
-              <div className="text-xs rounded-full bg-gray-100 px-2 py-1 capitalize">
-                {o.status}
+              <div className="text-xs rounded-full bg-gray-100 px-2 py-1">
+                {statusLabelFr(o.status)}
               </div>
             </CardHeader>
             <CardContent className="flex gap-3 items-center">
-              {o.items[0]?.imageUrl ? (
-                <Image
-                  src={o.items[0].imageUrl!}
-                  alt={o.items[0].name}
-                  width={96}
-                  height={64}
-                  className="h-16 w-24 rounded-md object-cover"
-                />
-              ) : rest.imageUrl ? (
-                <Image src={rest.imageUrl} alt={rest.name} width={96} height={64} className="h-16 w-24 rounded-md object-cover" />
-              ) : null}
+              <SafeImage
+                src={o.items[0]?.imageUrl || rest.imageUrl}
+                alt={o.items[0]?.name || rest.name}
+                width={96}
+                height={64}
+                className="h-16 w-24 rounded-md object-cover"
+              />
               {o.status === "placed" && (
                 <ActionButton id={o.id} action="merchant_accept">
                   Accepter
