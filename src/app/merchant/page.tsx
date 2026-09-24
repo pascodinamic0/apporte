@@ -6,7 +6,7 @@ import {
   merchantAccept,
   merchantSetPreparing,
   merchantSetReady,
-} from "@/src/lib/data/memory";
+} from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
@@ -27,9 +27,9 @@ export default async function MerchantHome() {
     );
   }
   const rid = user.merchantId!;
-  const rest = getRestaurant(rid)!;
+  const rest = (await getRestaurant(rid))!;
   // Read orders directly from in-process data layer to avoid self-fetch issues on Vercel
-  const orders = listOrdersForRestaurant(rid);
+  const orders = await listOrdersForRestaurant(rid);
   return (
     <div className="py-2">
       <div className="flex items-baseline justify-between mb-3">
@@ -86,13 +86,13 @@ async function update(id: string, action: string) {
   "use server";
   switch (action) {
     case "merchant_accept":
-      merchantAccept(id);
+      await merchantAccept(id);
       break;
     case "merchant_preparing":
-      merchantSetPreparing(id);
+      await merchantSetPreparing(id);
       break;
     case "merchant_ready":
-      merchantSetReady(id);
+      await merchantSetReady(id);
       break;
     default:
       break;

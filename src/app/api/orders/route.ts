@@ -5,22 +5,22 @@ import {
   listOrdersForRestaurant,
   listOrdersForRider,
   listOrdersAll,
-} from "@/src/lib/data/memory";
+} from "@/src/lib/data/db";
 import { getCurrentUser } from "@/src/lib/auth";
 import { OrderItem, PaymentMethod } from "@/src/lib/types";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ orders: [] });
-  let orders = [] as ReturnType<typeof listOrdersForCustomer>;
+  let orders = [] as Awaited<ReturnType<typeof listOrdersForCustomer>>;
   if (user.role === "merchant" && user.merchantId) {
-    orders = listOrdersForRestaurant(user.merchantId);
+    orders = await listOrdersForRestaurant(user.merchantId);
   } else if (user.role === "rider" && user.riderId) {
-    orders = listOrdersForRider(user.riderId);
+    orders = await listOrdersForRider(user.riderId);
   } else if (user.role === "admin") {
-    orders = listOrdersAll();
+    orders = await listOrdersAll();
   } else {
-    orders = listOrdersForCustomer(user.id);
+    orders = await listOrdersForCustomer(user.id);
   }
   return NextResponse.json({ orders });
 }
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!items?.length) {
     return NextResponse.json({ error: "missing_items" }, { status: 400 });
   }
-  const order = createOrder({
+  const order = await createOrder({
     customerId: user.id,
     restaurantId,
     items,

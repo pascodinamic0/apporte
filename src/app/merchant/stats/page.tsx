@@ -1,5 +1,5 @@
 import { requireRole } from "@/src/lib/auth";
-import { listOrdersForRestaurant } from "@/src/lib/data/memory";
+import { listOrdersForRestaurant } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export default async function MerchantStats() {
   const user = await requireRole(["merchant"]);
   if (!user) return <div className="py-6">Accès commerçant requis.</div>;
   const rid = user.merchantId!;
-  const orders = listOrdersForRestaurant(rid);
+  const orders = await listOrdersForRestaurant(rid);
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const todays = orders.filter((o) => o.createdAt >= startOfDay);
