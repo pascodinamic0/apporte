@@ -18,7 +18,7 @@ export function CartBar() {
   if (hide || items.length === 0) return null;
   return (
     <div
-      className="fixed left-0 right-0 z-50"
+      className="fixed left-0 right-0 z-50 animate-[apporte-slide-up_200ms_ease] motion-reduce:animate-none"
       style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
     >
       <div className="mx-auto max-w-5xl px-4">

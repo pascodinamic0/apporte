@@ -4,6 +4,7 @@ import type { MenuItem } from "@/src/lib/types";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+import Image from "next/image";
 
 export function MerchantMenuClient({
   restaurantId,
@@ -59,7 +60,12 @@ export function MerchantMenuClient({
                 />
               </div>
             </CardHeader>
-            <CardContent className="flex justify-end">
+            <CardContent className="flex items-center justify-between">
+              {m.imageUrl ? (
+                <Image src={m.imageUrl} alt={m.name} width={160} height={100} className="h-20 w-40 rounded-md object-cover" />
+              ) : (
+                <div className="h-20 w-40 rounded-md brand-gradient flex items-center justify-center text-2xl">🍽️</div>
+              )}
               <Button variant="outline" onClick={() => toggleAvailability(m)}>
                 {m.available ? "Marquer indisponible" : "Marquer disponible"}
               </Button>

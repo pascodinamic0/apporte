@@ -52,6 +52,18 @@ a:hover {
   box-shadow: var(--shadow);
 }
 
+/* Micro animations */
+@keyframes apporte-slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* ---- Mobile fit & PWA safe-area support ---- */
 :root {
   /* Safe area variables with fallbacks */

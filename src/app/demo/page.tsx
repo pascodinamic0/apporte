@@ -32,7 +32,14 @@ export default function DemoPage() {
   }
   return (
     <div className="py-2">
-      <h1 className="text-xl font-semibold mb-3">Comptes Démo</h1>
+      <div className="flex items-center gap-2 mb-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icons/apporte.svg" alt="" className="h-7 w-7" />
+        <h1 className="text-xl font-semibold">Comptes Démo</h1>
+      </div>
+      <div className="text-sm text-gray-700 mb-3">
+        Bascule rapidement entre les rôles pour tester l’application.
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {users.map((u) => (
           <Card key={u.id}>

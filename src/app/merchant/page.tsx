@@ -8,6 +8,7 @@ import {
   merchantSetReady,
 } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import Image from "next/image";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { revalidatePath } from "next/cache";
@@ -32,6 +33,11 @@ export default async function MerchantHome() {
   const orders = await listOrdersForRestaurant(rid);
   return (
     <div className="py-2">
+      {rest.imageUrl && (
+        <div className="rounded-xl overflow-hidden mb-3">
+          <Image src={rest.imageUrl} alt={rest.name} width={1200} height={480} className="h-32 w-full object-cover" />
+        </div>
+      )}
       <div className="flex items-baseline justify-between mb-3">
         <h1 className="text-xl font-semibold">{rest.name} — Commandes</h1>
         <div className="text-sm flex gap-3">
@@ -44,7 +50,13 @@ export default async function MerchantHome() {
         </div>
       </div>
       <div className="grid gap-3">
-        {orders.length === 0 && <div className="text-gray-600">Aucune commande.</div>}
+        {orders.length === 0 && (
+          <div className="text-gray-600 flex flex-col items-center justify-center py-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/apporte.svg" alt="" className="h-12 w-12 mb-2" />
+            Aucune commande.
+          </div>
+        )}
         {orders.map((o) => (
           <Card key={o.id}>
             <CardHeader className="flex items-center justify-between">
@@ -58,7 +70,18 @@ export default async function MerchantHome() {
                 {o.status}
               </div>
             </CardHeader>
-            <CardContent className="flex gap-2">
+            <CardContent className="flex gap-3 items-center">
+              {o.items[0]?.imageUrl ? (
+                <Image
+                  src={o.items[0].imageUrl!}
+                  alt={o.items[0].name}
+                  width={96}
+                  height={64}
+                  className="h-16 w-24 rounded-md object-cover"
+                />
+              ) : rest.imageUrl ? (
+                <Image src={rest.imageUrl} alt={rest.name} width={96} height={64} className="h-16 w-24 rounded-md object-cover" />
+              ) : null}
               {o.status === "placed" && (
                 <ActionButton id={o.id} action="merchant_accept">
                   Accepter

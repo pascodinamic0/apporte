@@ -25,6 +25,21 @@ export const metadata: Metadata = {
   description:
     "Commande de nourriture et trouvailles utiles à Kinshasa. On te l’apporte.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon-180.png", sizes: "180x180" },
+    ],
+    shortcut: ["/favicon.ico"],
+    other: [
+      { rel: "apple-touch-startup-image", url: "/splash/apple-splash-1290x2796.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
+      { rel: "apple-touch-startup-image", url: "/splash/apple-splash-1170x2532.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
+      { rel: "apple-touch-startup-image", url: "/splash/apple-splash-750x1334.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     title: "Apporte",

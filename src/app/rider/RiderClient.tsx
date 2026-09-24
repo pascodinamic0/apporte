@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
+import Image from "next/image";
 
 type Offer = {
   orderId: string;
@@ -18,6 +19,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
   const [offer, setOffer] = useState<Offer>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [pin, setPin] = useState("");
+  const [orderCover, setOrderCover] = useState<{ url?: string; name?: string } | null>(null);
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -28,6 +30,21 @@ export function RiderClient({ riderId }: { riderId: string }) {
     }, 3000);
     return () => clearInterval(id);
   }, [status, orderId, riderId]);
+
+  useEffect(() => {
+    (async () => {
+      if (!offer) return;
+      try {
+        const res = await fetch(`/api/orders/${offer.orderId}`);
+        const data = await res.json();
+        const o = data.order;
+        const cover = o?.items?.[0]?.imageUrl || null;
+        setOrderCover(cover ? { url: cover, name: o?.items?.[0]?.name } : null);
+      } catch {
+        setOrderCover(null);
+      }
+    })();
+  }, [offer]);
 
   async function setRiderStatus(s: "offline" | "online" | "busy") {
     setStatus(s);
@@ -89,6 +106,17 @@ export function RiderClient({ riderId }: { riderId: string }) {
         <Card className="mt-4">
           <CardHeader>Nouvelle livraison</CardHeader>
           <CardContent className="grid gap-2 text-sm">
+            {orderCover?.url && (
+              <div className="mb-1">
+                <Image
+                  src={orderCover.url}
+                  alt={orderCover.name || "Article"}
+                  width={320}
+                  height={160}
+                  className="h-20 w-full rounded-md object-cover"
+                />
+              </div>
+            )}
             <div>Pickup: {offer.pickupDistanceKm} km</div>
             <div>Livraison: {offer.deliveryDistanceKm} km</div>
             <div>Temps estimé: {offer.etaMinutes} min</div>

@@ -2,6 +2,7 @@ import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/l
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,14 @@ export default async function AdminPage() {
         <ListCard title="Commerçants">
           {merchants.map((m) => (
             <div key={m.id} className="flex items-center justify-between text-sm">
-              <div>{m.name}</div>
+              <div className="flex items-center gap-2">
+                {m.imageUrl ? (
+                  <Image src={m.imageUrl} alt={m.name} width={32} height={20} className="h-8 w-12 rounded object-cover" />
+                ) : (
+                  <div className="h-8 w-12 rounded brand-gradient flex items-center justify-center">🍽️</div>
+                )}
+                <div>{m.name}</div>
+              </div>
               <div className="text-xs text-gray-600">{m.cuisine}</div>
             </div>
           ))}

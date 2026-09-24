@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { useCartStore } from "@/src/store/cart";
 import { formatPriceUSD } from "@/src/lib/utils";
 import type { OrderItem, PaymentMethod } from "@/src/lib/types";
+import Image from "next/image";
 
 // Simple client copy of smart finds for upsell (for demo; avoid server import)
 const SMART_FIND_IDS = [
@@ -36,11 +37,41 @@ export default function CheckoutPage() {
       string,
       { id: string; name: string; priceUsd: number; imageUrl?: string }
     > = {
-      sf_powerbank: { id: "sf_powerbank", name: "Power bank 20,000 mAh", priceUsd: 18 },
-      sf_compressor: { id: "sf_compressor", name: "Compresseur portable", priceUsd: 25 },
-      sf_lamp: { id: "sf_lamp", name: "Lampe rechargeable", priceUsd: 12 },
-      sf_fast_charger: { id: "sf_fast_charger", name: "Chargeur rapide 20W", priceUsd: 9 },
-      sf_phone_holder: { id: "sf_phone_holder", name: "Support téléphone", priceUsd: 7 },
+      sf_powerbank: {
+        id: "sf_powerbank",
+        name: "Power bank 20,000 mAh",
+        priceUsd: 18,
+        imageUrl:
+          "https://images.unsplash.com/photo-1589571894960-20bbe2828d0a?auto=format&fit=crop&w=800&q=60",
+      },
+      sf_compressor: {
+        id: "sf_compressor",
+        name: "Compresseur portable",
+        priceUsd: 25,
+        imageUrl:
+          "https://images.unsplash.com/photo-1536840362362-87e3b4f3e6ea?auto=format&fit=crop&w=800&q=60",
+      },
+      sf_lamp: {
+        id: "sf_lamp",
+        name: "Lampe rechargeable",
+        priceUsd: 12,
+        imageUrl:
+          "https://images.unsplash.com/photo-1606166325748-3e2c6f5cd5df?auto=format&fit=crop&w=800&q=60",
+      },
+      sf_fast_charger: {
+        id: "sf_fast_charger",
+        name: "Chargeur rapide 20W",
+        priceUsd: 9,
+        imageUrl:
+          "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=60",
+      },
+      sf_phone_holder: {
+        id: "sf_phone_holder",
+        name: "Support téléphone",
+        priceUsd: 7,
+        imageUrl:
+          "https://images.unsplash.com/photo-1601297183305-6df142704ea1?auto=format&fit=crop&w=800&q=60",
+      },
     };
     return SMART_FIND_IDS.map((id) => map[id]).slice(0, 3);
   }, []);
@@ -142,7 +173,18 @@ export default function CheckoutPage() {
               <CardHeader>
                 <div className="font-medium">{p.name}</div>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
+              <CardContent className="flex items-center justify-between gap-3">
+                {p.imageUrl ? (
+                  <Image
+                    src={p.imageUrl}
+                    alt={p.name}
+                    width={160}
+                    height={100}
+                    className="h-16 w-28 rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-28 rounded-md brand-gradient flex items-center justify-center text-xl">📦</div>
+                )}
                 <div className="text-emerald-800 font-medium">{formatPriceUSD(p.priceUsd)}</div>
                 <Button variant="outline" onClick={() => addUpsell(p)}>
                   Ajouter

@@ -3,6 +3,7 @@ import { getOrder } from "@/src/lib/data/db";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { RateOrder } from "./parts";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,27 @@ export default async function OrderPage({
                 {order.pin}
               </span>
             </div>
+          </CardContent>
+        </Card>
+        <Card className="mt-3">
+          <CardHeader>Articles</CardHeader>
+          <CardContent className="grid gap-2">
+            {order.items.map((it) => (
+              <div key={it.id} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  {it.imageUrl ? (
+                    <Image src={it.imageUrl} alt={it.name} width={64} height={48} className="h-12 w-16 rounded object-cover" />
+                  ) : (
+                    <div className="h-12 w-16 rounded brand-gradient flex items-center justify-center">🍽️</div>
+                  )}
+                  <div>
+                    <div className="font-medium">{it.name}</div>
+                    <div className="text-gray-600">x{it.quantity}</div>
+                  </div>
+                </div>
+                <div>{formatPriceUSD(it.unitPriceUsd * it.quantity)}</div>
+              </div>
+            ))}
           </CardContent>
         </Card>
         {order.status === "delivered" && <RateOrder orderId={order.id} existing={order.rating} />}

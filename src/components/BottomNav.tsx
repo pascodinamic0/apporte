@@ -33,7 +33,7 @@ export function BottomNav() {
               <Link
                 href={it.href}
                 className={cn(
-                  "flex flex-col items-center text-[11px] leading-none px-2 py-1.5",
+                  "flex flex-col items-center text-[11px] leading-none px-2 py-1.5 transition-transform active:scale-95",
                   active ? "text-emerald-700 font-medium" : "text-gray-700",
                 )}
               >
