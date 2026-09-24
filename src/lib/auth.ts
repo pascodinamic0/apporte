@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { getDemoUsers } from "./data/memory";
+import { getDemoUsers } from "./data/db";
 import { User, UserRole } from "./types";
 
 const DEMO_COOKIE = "demo_user_id";
@@ -17,7 +17,7 @@ export async function getCurrentUser(): Promise<User | null> {
     const cstore = await cookies();
     const c = cstore.get(DEMO_COOKIE)?.value;
     if (!c) return null;
-    const u = getDemoUsers().find((u) => u.id === c);
+    const u = (await getDemoUsers()).find((u) => u.id === c);
     return u ?? null;
   }
   // Clerk integration placeholder: implement when env is present

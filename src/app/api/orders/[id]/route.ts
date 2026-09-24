@@ -7,14 +7,14 @@ import {
   merchantSetReady,
   setOrderRating,
   updateOrderStatus,
-} from "@/src/lib/data/memory";
+} from "@/src/lib/data/db";
 
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const order = getOrder(id);
+  const order = await getOrder(id);
   if (!order) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({ order });
 }
@@ -27,19 +27,19 @@ export async function PATCH(
   const { action, status, rating, comment, note, by } = body;
   const { id } = await context.params;
   if (action === "update_status" && status) {
-    updateOrderStatus(id, status);
+    await updateOrderStatus(id, status);
   } else if (action === "merchant_accept") {
-    merchantAccept(id);
+    await merchantAccept(id);
   } else if (action === "merchant_preparing") {
-    merchantSetPreparing(id);
+    await merchantSetPreparing(id);
   } else if (action === "merchant_ready") {
-    merchantSetReady(id);
+    await merchantSetReady(id);
   } else if (action === "rate" && rating) {
-    setOrderRating(id, rating, comment);
+    await setOrderRating(id, rating, comment);
   } else if (action === "support_note" && note && by) {
-    addSupportNote(id, note, by);
+    await addSupportNote(id, note, by);
   }
-  const order = getOrder(id);
+  const order = await getOrder(id);
   if (!order) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({ ok: true, order });
 }

@@ -8,13 +8,13 @@ import {
   progressToGoing,
   confirmPickup,
   confirmDelivered,
-} from "@/src/lib/data/memory";
+} from "@/src/lib/data/db";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const riderId = searchParams.get("riderId") || "";
   if (!riderId) return NextResponse.json({ offer: null });
-  const offer = nextOfferForRider(riderId);
+  const offer = await nextOfferForRider(riderId);
   return NextResponse.json({ offer });
 }
 
@@ -37,26 +37,26 @@ export async function POST(req: NextRequest) {
   let delivered = null as null | { ok: boolean; reason?: string };
   switch (action) {
     case "accept":
-      ok = acceptOffer(riderId, orderId);
+      ok = await acceptOffer(riderId, orderId);
       break;
     case "decline":
-      declineOffer(riderId, orderId);
+      await declineOffer(riderId, orderId);
       ok = true;
       break;
     case "going":
-      ok = progressToGoing(riderId, orderId);
+      ok = await progressToGoing(riderId, orderId);
       break;
     case "arrived":
-      ok = progressToArrived(riderId, orderId);
+      ok = await progressToArrived(riderId, orderId);
       break;
     case "picked_up":
-      ok = confirmPickup(riderId, orderId);
+      ok = await confirmPickup(riderId, orderId);
       break;
     case "delivering":
-      ok = progressToDelivering(riderId, orderId);
+      ok = await progressToDelivering(riderId, orderId);
       break;
     case "delivered":
-      delivered = confirmDelivered(riderId, orderId, pin || "");
+      delivered = await confirmDelivered(riderId, orderId, pin || "");
       ok = delivered.ok;
       break;
   }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   toggleMenuItemAvailability,
   updateMenuItemPrice,
-} from "@/src/lib/data/memory";
+} from "@/src/lib/data/db";
 
 export async function PATCH(
   req: NextRequest,
@@ -15,10 +15,10 @@ export async function PATCH(
     priceUsd?: number;
   };
   if (typeof available === "boolean") {
-    toggleMenuItemAvailability(id, available);
+    await toggleMenuItemAvailability(id, available);
   }
   if (typeof priceUsd === "number") {
-    updateMenuItemPrice(id, priceUsd);
+    await updateMenuItemPrice(id, priceUsd);
   }
   return NextResponse.json({ ok: true });
 }
