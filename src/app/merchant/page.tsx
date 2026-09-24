@@ -9,6 +9,7 @@ import {
 } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Image from "next/image";
+import { Stagger } from "@/src/components/Stagger";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { revalidatePath } from "next/cache";
@@ -57,6 +58,7 @@ export default async function MerchantHome() {
             Aucune commande.
           </div>
         )}
+        <Stagger>
         {orders.map((o) => (
           <Card key={o.id}>
             <CardHeader className="flex items-center justify-between">
@@ -100,6 +102,7 @@ export default async function MerchantHome() {
             </CardContent>
           </Card>
         ))}
+        </Stagger>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import Image from "next/image";
+import { Stagger } from "@/src/components/Stagger";
 
 export function MerchantMenuClient({
   restaurantId,
@@ -42,6 +43,7 @@ export function MerchantMenuClient({
       <h1 className="text-xl font-semibold mb-3">Menu</h1>
       <div className="grid gap-3">
         {menu.length === 0 && <div className="text-gray-600">Chargement du menu…</div>}
+        <Stagger>
         {menu.map((m) => (
           <Card key={m.id}>
             <CardHeader className="flex items-center justify-between">
@@ -72,6 +74,7 @@ export function MerchantMenuClient({
             </CardContent>
           </Card>
         ))}
+        </Stagger>
       </div>
     </div>
   );

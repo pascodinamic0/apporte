@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
 import Image from "next/image";
+import { Stagger } from "@/src/components/Stagger";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function AdminPage() {
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <ListCard title="Commandes récentes">
+          <Stagger>
           {orders.slice(0, 8).map((o) => (
             <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
               <div className="truncate">
@@ -45,16 +47,20 @@ export default async function AdminPage() {
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1 capitalize">{o.status}</div>
             </Link>
           ))}
+          </Stagger>
         </ListCard>
         <ListCard title="Livreurs">
+          <Stagger>
           {riders.map((r) => (
             <div key={r.id} className="flex items-center justify-between text-sm">
               <div>{r.name}</div>
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{r.status}</div>
             </div>
           ))}
+          </Stagger>
         </ListCard>
         <ListCard title="Commerçants">
+          <Stagger>
           {merchants.map((m) => (
             <div key={m.id} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
@@ -68,14 +74,17 @@ export default async function AdminPage() {
               <div className="text-xs text-gray-600">{m.cuisine}</div>
             </div>
           ))}
+          </Stagger>
         </ListCard>
         <ListCard title="Clients">
+          <Stagger>
           {customers.map((c) => (
             <div key={c.id} className="flex items-center justify-between text-sm">
               <div>{c.name}</div>
               <div className="text-xs text-gray-600">{c.email}</div>
             </div>
           ))}
+          </Stagger>
         </ListCard>
       </div>
     </div>
