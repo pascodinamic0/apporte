@@ -1,12 +1,12 @@
-import { listSmartFinds } from "@/src/lib/data/memory";
+import { listSmartFinds } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { AddSmartFindToCartButton } from "./parts";
 
 export const dynamic = "force-dynamic";
 
-export default function SmartFindsPage() {
-  const products = listSmartFinds();
+export default async function SmartFindsPage() {
+  const products = await listSmartFinds();
   return (
     <div className="py-2">
       <h1 className="text-xl font-semibold">Trouvailles</h1>

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDemoUsers } from "@/src/lib/data/memory";
+import { getDemoUsers } from "@/src/lib/data/db";
 
 export async function POST(req: NextRequest) {
   const { userId, email } = await req.json().catch(() => ({}));
-  const users = getDemoUsers();
+  const users = await getDemoUsers();
   const user =
     users.find((u) => u.id === userId) ||
     (email ? users.find((u) => u.email === email) : undefined);

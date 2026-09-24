@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getOrder } from "@/src/lib/data/memory";
+import { getOrder } from "@/src/lib/data/db";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { RateOrder } from "./parts";
@@ -26,7 +26,7 @@ export default async function OrderPage({
 }) {
   const { id } = await params;
   // Read directly from in-process data layer to avoid self-fetch issues
-  const order = getOrder(id);
+  const order = await getOrder(id);
   if (!order) return notFound();
   const idx = steps.indexOf(order.status as any);
   return (

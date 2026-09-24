@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
-import { getRestaurants, listSmartFinds } from "@/src/lib/data/memory";
+import { getRestaurants, listSmartFinds } from "@/src/lib/data/db";
 import { Utensils, Package, ShoppingCart } from "lucide-react";
 import { getCurrentUser } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
@@ -13,8 +13,8 @@ export default async function Home() {
     if (user.role === "rider") redirect("/rider");
     if (user.role === "admin") redirect("/admin");
   }
-  const restaurants = getRestaurants().slice(0, 4);
-  const products = listSmartFinds().slice(0, 3);
+  const restaurants = (await getRestaurants()).slice(0, 4);
+  const products = (await listSmartFinds()).slice(0, 3);
   return (
     <div className="py-6">
       <section className="rounded-xl brand-gradient p-5 shadow-sm">

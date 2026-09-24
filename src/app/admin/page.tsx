@@ -1,4 +1,4 @@
-import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/lib/data/memory";
+import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
@@ -18,10 +18,10 @@ export default async function AdminPage() {
     );
   }
   // Read recent orders directly from in-process data layer
-  const orders = listOrdersAll();
-  const riders = listRiders();
-  const merchants = getRestaurants();
-  const customers = getDemoUsers().filter((u) => u.role === "customer");
+  const orders = await listOrdersAll();
+  const riders = await listRiders();
+  const merchants = await getRestaurants();
+  const customers = (await getDemoUsers()).filter((u) => u.role === "customer");
   const today = new Date();
   const sod = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const completedToday = orders.filter((o) => o.status === "delivered" && o.createdAt >= sod).length;

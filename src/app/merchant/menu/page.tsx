@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
-import { getMenuForRestaurant } from "@/src/lib/data/memory";
+import { getMenuForRestaurant } from "@/src/lib/data/db";
 import { MerchantMenuClient } from "./MerchantMenuClient";
 
 export default async function MerchantMenu() {
@@ -15,7 +15,7 @@ export default async function MerchantMenu() {
       </div>
     );
   }
-  const initialMenu = getMenuForRestaurant(user.merchantId);
+  const initialMenu = await getMenuForRestaurant(user.merchantId);
   return <MerchantMenuClient restaurantId={user.merchantId} initialMenu={initialMenu} />;
 }
 

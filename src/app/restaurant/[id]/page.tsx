@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMenuForRestaurant, getRestaurant } from "@/src/lib/data/memory";
+import { getMenuForRestaurant, getRestaurant } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
@@ -11,9 +11,9 @@ export default async function RestaurantPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const r = getRestaurant(id);
+  const r = await getRestaurant(id);
   if (!r) return notFound();
-  const menu = getMenuForRestaurant(r.id);
+  const menu = await getMenuForRestaurant(r.id);
   return (
     <div className="py-2">
       <h1 className="text-2xl font-semibold">{r.name}</h1>
