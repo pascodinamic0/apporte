@@ -9,6 +9,7 @@ import { CartBar } from "@/src/components/CartBar";
 import { getCurrentUser } from "@/src/lib/auth";
 import { Splash } from "@/src/components/Splash";
 import { PageTransition } from "@/src/components/PageTransition";
+import { UpdatePrompt } from "@/src/components/UpdatePrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +75,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {isCustomer && <BottomNav />}
         {!isCustomer && <RoleBottomNav role={(user?.role as any) ?? "merchant"} />}
         <Providers />
+        <UpdatePrompt />
       </body>
     </html>
   );

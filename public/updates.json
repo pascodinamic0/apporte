@@ -1,0 +1,21 @@
+[
+  {
+    "date": "2026-09-25",
+    "title": "Polish UI et accessibilité",
+    "items": [
+      "Nouveaux écrans vides (panier, commandes, compte, commerçant) avec illustrations et actions.",
+      "Boutons cohérents à la place des liens soulignés.",
+      "Barre d’actions livreur collée visible sur tous les écrans."
+    ]
+  },
+  {
+    "date": "2026-09-25",
+    "title": "Sécurité et fiabilité",
+    "items": [
+      "Sécurisation des API (rider/merchant/admin via session).",
+      "Offres livreur robustes avec expiration et enchaînement automatiques.",
+      "Recalcul des prix server-side lors de la création de commande."
+    ]
+  }
+]
+
