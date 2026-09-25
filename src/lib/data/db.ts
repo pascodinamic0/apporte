@@ -211,6 +211,13 @@ export async function createOrder(params: {
     await supabase.from("orders").delete().eq("id", id);
     throw insItems.error;
   }
+  // If Smart Finds (no restaurant), immediately build the rider offer queue
+  if (!params.restaurantId) {
+    const fullNow = await getOrder(id);
+    if (fullNow) {
+      await buildOfferQueueForOrder(fullNow);
+    }
+  }
   // Return assembled
   const full = await getOrder(id);
   if (!full) throw new Error("Order creation failed");

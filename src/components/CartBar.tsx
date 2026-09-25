@@ -22,7 +22,7 @@ export function CartBar() {
       style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
     >
       <div className="mx-auto max-w-5xl px-4">
-        <Link href="/cart" className="flex items-center justify-between rounded-full bg-emerald-800 text-white px-5 py-3 shadow-lg ring-1 ring-emerald-900/20">
+        <Link href="/cart" className="flex items-center justify-between rounded-full bg-emerald-700 text-white px-5 py-3 shadow-lg ring-1 ring-emerald-900/20">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             <span className="text-sm font-medium">

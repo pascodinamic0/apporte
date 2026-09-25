@@ -135,8 +135,9 @@ export function RiderClient({ riderId }: { riderId: string }) {
             )}
             {orderInfo && (
               <div className="rounded-lg bg-gray-50 p-3">
-                <div className="font-medium">{orderInfo.restaurantId ? "Restaurant" : "Achat Trouvailles"}</div>
+                <div className="font-medium">Client</div>
                 <div className="text-gray-700">{orderInfo.address}</div>
+                <div className="text-gray-600 text-xs mt-1">Zone: {orderInfo.zone}</div>
               </div>
             )}
             <div>Pickup: {offer.pickupDistanceKm} km</div>

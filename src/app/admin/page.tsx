@@ -49,7 +49,7 @@ export default async function AdminPage() {
   return (
     <div className="py-2">
       <h1 className="text-xl font-semibold mb-3">Admin</h1>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
         <Stat title="Commandes terminées (aujourd’hui)" value={String(completedToday)} />
         <Stat title="Annulations (aujourd’hui)" value={String(cancelledToday)} />
         <Stat title="Livreurs en ligne" value={String(riders.filter((r) => r.status === "online").length)} />
