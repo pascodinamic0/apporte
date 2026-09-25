@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { SafeImage } from "@/src/components/SafeImage";
+import { RateOrder } from "./parts";
 
 const steps = [
   "placed",
@@ -74,6 +75,14 @@ export function OrderClient({ orderId }: { orderId: string }) {
       <div className="text-sm text-gray-600 mb-2">
         Total: {formatPriceUSD(order.totalUsd)} • Paiement: {order.paymentMethod}
       </div>
+      {order.pin && (
+        <div className="mb-3 text-sm">
+          Code de livraison (PIN):
+          <span className="ml-2 inline-block rounded-md bg-emerald-50 px-2 py-1 font-mono text-base font-bold text-emerald-800">
+            {order.pin}
+          </span>
+        </div>
+      )}
       <Card>
         <CardHeader>Suivi</CardHeader>
         <CardContent>
@@ -116,6 +125,7 @@ export function OrderClient({ orderId }: { orderId: string }) {
           ))}
         </CardContent>
       </Card>
+      {order.status === "delivered" && <div className="mt-3"><RateOrder orderId={order.id} existing={order.rating} /></div>}
     </>
   );
 }

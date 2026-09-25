@@ -49,7 +49,7 @@ export default async function AccountPage() {
                   <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{statusLabelFr(o.status)}</div>
                 </CardHeader>
                 <CardContent className="text-sm text-gray-700 flex items-center justify-between">
-                  <div>{new Date(o.createdAt).toLocaleString()}</div>
+                  <div>{new Date(o.createdAt).toLocaleString("fr-CD", { timeZone: "Africa/Kinshasa", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                   <div className="font-medium text-emerald-800">{formatPriceUSD(o.totalUsd)}</div>
                   <Link href={`/order/${o.id}`} className="text-emerald-700 underline">
                     Ouvrir

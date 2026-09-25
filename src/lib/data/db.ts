@@ -127,17 +127,29 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   if (error) throw error;
   if (!data) return undefined;
   const base = mapOrderRow(data);
-  const [itemsRes, notesRes] = await Promise.all([
+  const [itemsRes, notesRes, menuLookup] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id).order("created_at"),
     supabase
       .from("support_notes")
       .select("*")
       .eq("order_id", id)
       .order("created_at", { ascending: true }),
+    supabase.from("menu_items").select("id,image_url"),
   ]);
   if (itemsRes.error) throw itemsRes.error;
   if (notesRes.error) throw notesRes.error;
   base.items = (itemsRes.data || []).map(mapOrderItem);
+  // Backfill missing images from current menu data
+  const menuById = new Map<string, string>();
+  if (!menuLookup.error) {
+    for (const m of menuLookup.data || []) {
+      if ((m as any).id) menuById.set((m as any).id, (m as any).image_url || null);
+    }
+  }
+  base.items = base.items.map((it) => ({
+    ...it,
+    imageUrl: it.imageUrl || (it.menuItemId ? menuById.get(it.menuItemId) || undefined : it.imageUrl),
+  }));
   const notes = (notesRes.data || []).map(mapSupportNote);
   base.supportNotes = notes.length ? notes : undefined;
   return base;
@@ -171,7 +183,7 @@ export async function createOrder(params: {
     address: params.address,
     zone: params.zone ?? PILOT_ZONE,
     payment_method: params.paymentMethod,
-    status: "placed" as OrderStatus,
+    status: (params.restaurantId ? "placed" : "rider_searching") as OrderStatus,
     pin,
     created_at: new Date(now).toISOString(),
     updated_at: new Date(now).toISOString(),
@@ -179,11 +191,11 @@ export async function createOrder(params: {
     rating_comment: null,
     rating_created_at: null,
   };
-  const { error } = await supabase.from("orders").insert(orderRow);
-  if (error) throw error;
+  const ins = await supabase.from("orders").insert(orderRow);
+  if (ins.error) throw ins.error;
   // Insert items
   const itemRows = params.items.map((it) => ({
-    id: it.id || randomId("oi"),
+    id: randomId("oi"),
     order_id: id,
     kind: it.kind,
     restaurant_id: it.restaurantId ?? null,
@@ -195,7 +207,10 @@ export async function createOrder(params: {
     image_url: it.imageUrl ?? null,
   }));
   const insItems = await supabase.from("order_items").insert(itemRows);
-  if (insItems.error) throw insItems.error;
+  if (insItems.error) {
+    await supabase.from("orders").delete().eq("id", id);
+    throw insItems.error;
+  }
   // Return assembled
   const full = await getOrder(id);
   if (!full) throw new Error("Order creation failed");

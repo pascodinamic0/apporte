@@ -30,22 +30,22 @@ export default async function Home() {
         </p>
         <div className="mt-3">
           <SafeImage
-            src="/images/hero-home.png"
+            src="/images/hero-home.jpg"
             alt="Hero"
-            width={1200}
-            height={320}
+            width={1600}
+            height={1000}
             className="h-20 w-full rounded-lg object-cover"
           />
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Link href="/food">
-            <Button className="gap-2 whitespace-nowrap">
+            <Button className="gap-2 whitespace-nowrap w-full sm:w-auto">
               <Utensils className="h-4 w-4" />
               Découvrir à manger
             </Button>
           </Link>
           <Link href="/smart-finds">
-            <Button variant="outline" className="gap-2 whitespace-nowrap">
+            <Button variant="outline" className="gap-2 whitespace-nowrap w-full sm:w-auto">
               <Package className="h-4 w-4" />
               Trouvailles
             </Button>

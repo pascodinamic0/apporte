@@ -3,25 +3,44 @@ import fs from "node:fs/promises";
 export const dynamic = "force-dynamic";
 
 export default async function CreditsPage() {
-  const mdPath = process.cwd() + "/public/images/CREDITS.md";
-  let md = "";
+  const jsonPath = process.cwd() + "/public/images/manifest.json";
+  let manifest: any = null;
   try {
-    md = await fs.readFile(mdPath, "utf8");
+    const raw = await fs.readFile(jsonPath, "utf8");
+    manifest = JSON.parse(raw);
   } catch {}
-  const html = md
-    .replace(/^# (.*)$/gm, "<h1 class=\"text-2xl font-semibold mb-2\">$1</h1>")
-    .replace(/^## (.*)$/gm, "<h2 class=\"text-xl font-semibold mt-4 mb-2\">$1</h2>")
-    .replace(/^\- (.*)$/gm, "<li>$1</li>")
-    .replace(/\n{2,}/g, "\n\n");
   return (
-    <div className="py-2 prose prose-sm max-w-5xl">
+    <div className="py-2 max-w-5xl">
       <h1 className="text-2xl font-semibold mb-3">À propos / Crédits photos</h1>
-      {md ? (
-        <div dangerouslySetInnerHTML={{ __html: html }} />
-      ) : (
+      {!manifest ? (
         <p className="text-sm text-gray-700">
-          Le fichier de crédits n’est pas disponible dans cet environnement.
+          Les crédits ne sont pas disponibles dans cet environnement.
         </p>
+      ) : (
+        <div className="grid gap-3">
+          {Object.entries<any>(manifest.items).map(([key, info]) => {
+            if (!info.file || !info.source) return null;
+            const file = `/images/${info.file}`;
+            return (
+              <div key={key} className="flex items-center gap-3 rounded-lg border p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={file} alt={key} className="h-16 w-24 rounded object-cover" />
+                <div className="text-sm">
+                  <div className="font-medium">{key}</div>
+                  <div className="text-gray-700">
+                    Licence:{" "}
+                    <a className="text-emerald-700 underline" href={info.source} target="_blank">
+                      {info.license || "Source"}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div className="text-xs text-gray-600 mt-2">
+            Carte: © OpenStreetMap contributors — ODbL 1.0 (voir la page Crédit).
+          </div>
+        </div>
       )}
     </div>
   );

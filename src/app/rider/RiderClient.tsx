@@ -37,7 +37,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
     (async () => {
       if (!offer) return;
       try {
-        const res = await fetch(`/api/orders/${offer.orderId}`);
+        const res = await fetch(`/api/orders/${offer.orderId}`, { cache: "no-store" });
         const data = await res.json();
         const o = data.order;
         const cover = o?.items?.[0]?.imageUrl || null;
@@ -163,15 +163,21 @@ export function RiderClient({ riderId }: { riderId: string }) {
                 <div className="text-gray-700">{orderInfo.address}</div>
               </div>
             )}
-            <Button onClick={() => {
-              // Compute next step based on rough progression
-              const s = orderInfo?.status;
-              if (s === "rider_assigned") act("going");
-              else if (s === "going_to_restaurant") act("arrived");
-              else if (s === "arrived") act("picked_up");
-              else if (s === "picked_up") act("delivering");
-              else act("delivering");
-            }}>
+            <Button
+              onClick={async () => {
+                // Fetch latest status before deciding next step
+                if (!orderId) return;
+                try {
+                  const r = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
+                  const d = await r.json();
+                  const s = d.order?.status;
+                  if (s === "rider_assigned") await act("going");
+                  else if (s === "going_to_restaurant") await act("arrived");
+                  else if (s === "arrived") await act("picked_up");
+                  else if (s === "picked_up") await act("delivering");
+                } catch {}
+              }}
+            >
               Étape suivante
             </Button>
             <div className="flex items-center gap-2">

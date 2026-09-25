@@ -7,7 +7,7 @@ type Props = Omit<ImageProps, "onError" | "src"> & {
   fallbackSrc?: string;
 };
 
-export function SafeImage({ src, fallbackSrc = "/icons/apporte.svg", alt, ...rest }: Props) {
+export function SafeImage({ src, fallbackSrc = "/logo/apporte-symbol.svg", alt, ...rest }: Props) {
   const [error, setError] = useState(false);
   if (!src || error) {
     return (

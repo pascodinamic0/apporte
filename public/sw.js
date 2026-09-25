@@ -49,16 +49,23 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-  // Stale-while-revalidate for static assets
+  // Stale-while-revalidate only for static hashed assets and known file extensions
   event.respondWith(
     (async () => {
+      const isStatic =
+        url.pathname.startsWith("/_next/static/") ||
+        /\.(?:js|css|woff2?|png|jpg|jpeg|svg|ico|webp)$/.test(url.pathname);
+      const isRsc = url.search.includes("_rsc") || (req.headers.get("accept") || "").includes("text/x-component");
+      if (!isStatic || isRsc) {
+        return fetch(req);
+      }
       const cached = await caches.match(req);
       const fetchPromise = fetch(req)
         .then(async (resp) => {
           if (resp && resp.ok) {
             const copy = resp.clone();
             const cache = await caches.open(CACHE_STATIC);
-            cache.put(req, copy);
+            await cache.put(req, copy);
           }
           return resp;
         })

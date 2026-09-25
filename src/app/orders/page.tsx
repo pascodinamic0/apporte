@@ -3,12 +3,21 @@ import { getCurrentUser } from "@/src/lib/auth";
 import { listOrdersForCustomer } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { formatPriceUSD, statusLabelFr } from "@/src/lib/utils";
+import { getRestaurant } from "@/src/lib/data/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrdersPage() {
   const user = await getCurrentUser();
   const orders = user ? await listOrdersForCustomer(user.id) : [];
+  const restIds = Array.from(new Set(orders.map((o) => o.restaurantId).filter(Boolean))) as string[];
+  const restMap = new Map<string, any>();
+  await Promise.all(
+    restIds.map(async (id) => {
+      const r = await getRestaurant(id);
+      if (r) restMap.set(id, r);
+    }),
+  );
   if (!user) {
     return (
       <div className="py-6">
@@ -26,11 +35,11 @@ export default async function OrdersPage() {
         {orders.map((o) => (
           <Card key={o.id}>
             <CardHeader className="flex items-center justify-between">
-              <div>#{o.id.slice(-6)}</div>
+              <div className="flex items-center gap-2">#{o.id.slice(-6)}</div>
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{statusLabelFr(o.status)}</div>
             </CardHeader>
             <CardContent className="text-sm text-gray-700 flex items-center justify-between">
-              <div>{new Date(o.createdAt).toLocaleString()}</div>
+              <div>{new Date(o.createdAt).toLocaleString("fr-CD", { timeZone: "Africa/Kinshasa", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
               <div className="font-medium text-emerald-800">{formatPriceUSD(o.totalUsd)}</div>
               <Link href={`/order/${o.id}`} className="text-emerald-700 underline">
                 Détails
