@@ -34,8 +34,9 @@ const db = {
 };
 
 export function isDemoMode(): boolean {
-  // Demo mode when no database URL / Clerk env provided
-  return !process.env.DATABASE_URL || !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  return !(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
 }
 
 export function getRestaurants(): Restaurant[] {

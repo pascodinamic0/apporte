@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { SafeImage } from "@/src/components/SafeImage";
 import { getMenuForRestaurant, getRestaurant } from "@/src/lib/data/db";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
-import { Button } from "@/src/components/ui/button";
+import { Card } from "@/src/components/ui/card";
 import { formatPriceUSD } from "@/src/lib/utils";
 import { AddToCartButton } from "./parts";
 
@@ -33,23 +32,29 @@ export default async function RestaurantPage({
       <div className="grid gap-3">
         {menu.map((m) => (
           <Card key={m.id}>
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">{m.name}</div>
-                <div className="text-sm text-gray-600">{m.description}</div>
-              </div>
-              <div className="text-emerald-800 font-medium">{formatPriceUSD(m.priceUsd)}</div>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
+            <div className="flex gap-3 p-3 sm:p-4">
               <SafeImage
                 src={m.imageUrl}
                 alt={m.name}
                 width={640}
                 height={320}
-                className="h-24 w-36 rounded-lg object-cover"
+                className="h-24 w-24 shrink-0 rounded-xl object-cover"
               />
-              <AddToCartButton menuItem={m} restaurantId={r.id} />
-            </CardContent>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">{m.name}</div>
+                    <div className="text-sm text-gray-600">{m.description}</div>
+                  </div>
+                  <div className="shrink-0 font-semibold text-emerald-800">
+                    {formatPriceUSD(m.priceUsd)}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <AddToCartButton menuItem={m} restaurantId={r.id} />
+                </div>
+              </div>
+            </div>
           </Card>
         ))}
       </div>

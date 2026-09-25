@@ -7,6 +7,7 @@ type CartState = {
   restaurantId?: string;
   addItem: (item: OrderItem, opts?: { restaurantId?: string }) => void;
   removeItem: (id: string) => void;
+  setQuantity: (id: string, quantity: number) => void;
   clear: () => void;
 };
 
@@ -30,7 +31,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
   removeItem: (id) => {
-    set({ items: get().items.filter((i) => i.id !== id) });
+    const items = get().items.filter((i) => i.id !== id);
+    set({ items, restaurantId: items.length ? get().restaurantId : undefined });
+  },
+  setQuantity: (id, quantity) => {
+    const items = get()
+      .items.map((i) => (i.id === id ? { ...i, quantity } : i))
+      .filter((i) => i.quantity > 0);
+    set({ items, restaurantId: items.length ? get().restaurantId : undefined });
   },
   clear: () => set({ items: [], restaurantId: undefined }),
 }));

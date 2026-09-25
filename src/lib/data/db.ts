@@ -13,9 +13,17 @@ import {
 import { PILOT_ZONE } from "../seed";
 import { generatePin, randomId } from "../utils";
 import { getServiceClient } from "../supabase/server";
+import * as memory from "./memory";
+
+function supabaseConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
 
 // Restaurants
 export async function getRestaurants(): Promise<Restaurant[]> {
+  if (!supabaseConfigured()) return memory.getRestaurants();
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("restaurants")
@@ -27,6 +35,7 @@ export async function getRestaurants(): Promise<Restaurant[]> {
 }
 
 export async function getRestaurant(id: string): Promise<Restaurant | undefined> {
+  if (!supabaseConfigured()) return memory.getRestaurant(id);
   const supabase = getServiceClient();
   const { data, error } = await supabase.from("restaurants").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
@@ -34,6 +43,7 @@ export async function getRestaurant(id: string): Promise<Restaurant | undefined>
 }
 
 export async function getMenuForRestaurant(restaurantId: string): Promise<MenuItem[]> {
+  if (!supabaseConfigured()) return memory.getMenuForRestaurant(restaurantId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("menu_items")
@@ -46,6 +56,7 @@ export async function getMenuForRestaurant(restaurantId: string): Promise<MenuIt
 
 // Catalog
 export async function listSmartFinds(): Promise<SmartFindProduct[]> {
+  if (!supabaseConfigured()) return memory.listSmartFinds();
   const supabase = getServiceClient();
   const { data, error } = await supabase.from("smart_find_products").select("*").order("name");
   if (error) throw error;
@@ -54,6 +65,7 @@ export async function listSmartFinds(): Promise<SmartFindProduct[]> {
 
 // Riders
 export async function listRiders(): Promise<Rider[]> {
+  if (!supabaseConfigured()) return memory.listRiders();
   const supabase = getServiceClient();
   const { data, error } = await supabase.from("riders").select("*").order("name");
   if (error) throw error;
@@ -61,6 +73,7 @@ export async function listRiders(): Promise<Rider[]> {
 }
 
 export async function setRiderStatus(riderId: string, status: RiderStatus) {
+  if (!supabaseConfigured()) return memory.setRiderStatus(riderId, status);
   const supabase = getServiceClient();
   const { error } = await supabase.from("riders").update({ status }).eq("id", riderId);
   if (error) throw error;
@@ -68,11 +81,13 @@ export async function setRiderStatus(riderId: string, status: RiderStatus) {
 
 // Menu admin
 export async function toggleMenuItemAvailability(menuItemId: string, available: boolean) {
+  if (!supabaseConfigured()) return memory.toggleMenuItemAvailability(menuItemId, available);
   const supabase = getServiceClient();
   const { error } = await supabase.from("menu_items").update({ available }).eq("id", menuItemId);
   if (error) throw error;
 }
 export async function updateMenuItemPrice(menuItemId: string, priceUsd: number) {
+  if (!supabaseConfigured()) return memory.updateMenuItemPrice(menuItemId, priceUsd);
   const supabase = getServiceClient();
   const { error } = await supabase
     .from("menu_items")
@@ -83,6 +98,7 @@ export async function updateMenuItemPrice(menuItemId: string, priceUsd: number) 
 
 // Orders
 export async function listOrdersAll(): Promise<Order[]> {
+  if (!supabaseConfigured()) return memory.listOrdersAll();
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
@@ -92,6 +108,7 @@ export async function listOrdersAll(): Promise<Order[]> {
   return await attachItemsAndNotes((data || []).map(mapOrderRow));
 }
 export async function listOrdersForRestaurant(restaurantId: string): Promise<Order[]> {
+  if (!supabaseConfigured()) return memory.listOrdersForRestaurant(restaurantId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
@@ -102,6 +119,7 @@ export async function listOrdersForRestaurant(restaurantId: string): Promise<Ord
   return await attachItemsAndNotes((data || []).map(mapOrderRow));
 }
 export async function listOrdersForRider(riderId: string): Promise<Order[]> {
+  if (!supabaseConfigured()) return memory.listOrdersForRider(riderId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
@@ -112,6 +130,7 @@ export async function listOrdersForRider(riderId: string): Promise<Order[]> {
   return await attachItemsAndNotes((data || []).map(mapOrderRow));
 }
 export async function listOrdersForCustomer(customerId: string): Promise<Order[]> {
+  if (!supabaseConfigured()) return memory.listOrdersForCustomer(customerId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
@@ -122,6 +141,7 @@ export async function listOrdersForCustomer(customerId: string): Promise<Order[]
   return await attachItemsAndNotes((data || []).map(mapOrderRow));
 }
 export async function getOrder(id: string): Promise<Order | undefined> {
+  if (!supabaseConfigured()) return memory.getOrder(id);
   const supabase = getServiceClient();
   const { data, error } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
@@ -167,6 +187,7 @@ export async function createOrder(params: {
   zone?: string;
   paymentMethod: PaymentMethod;
 }): Promise<Order> {
+  if (!supabaseConfigured()) return memory.createOrder(params);
   const supabase = getServiceClient();
   // Recompute prices and names server-side from DB
   const menuIds = params.items.filter((i) => i.kind === "food" && i.menuItemId).map((i) => i.menuItemId as string);
@@ -266,6 +287,7 @@ export async function createOrder(params: {
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+  if (!supabaseConfigured()) return memory.updateOrderStatus(orderId, status);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
@@ -285,6 +307,7 @@ export async function setOrderRating(
   stars: 1 | 2 | 3 | 4 | 5,
   comment?: string,
 ) {
+  if (!supabaseConfigured()) return memory.setOrderRating(orderId, stars, comment);
   const supabase = getServiceClient();
   const { error } = await supabase
     .from("orders")
@@ -303,6 +326,7 @@ export async function addSupportNote(
   note: string,
   createdBy: string,
 ): Promise<SupportNote> {
+  if (!supabaseConfigured()) return memory.addSupportNote(orderId, note, createdBy);
   const supabase = getServiceClient();
   const insert = await supabase
     .from("support_notes")
@@ -321,6 +345,7 @@ export async function addSupportNote(
 
 // Dispatch
 export async function nextOfferForRider(riderId: string) {
+  if (!supabaseConfigured()) return memory.nextOfferForRider(riderId);
   const supabase = getServiceClient();
   // Ensure rider is online
   const rres = await supabase.from("riders").select("*").eq("id", riderId).maybeSingle();
@@ -404,6 +429,7 @@ export async function nextOfferForRider(riderId: string) {
 }
 
 export async function declineOffer(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.declineOffer(riderId, orderId);
   const supabase = getServiceClient();
   const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
   if (qres.error) throw qres.error;
@@ -421,6 +447,7 @@ export async function declineOffer(riderId: string, orderId: string) {
 }
 
 export async function acceptOffer(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.acceptOffer(riderId, orderId);
   const supabase = getServiceClient();
   const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
   if (qres.error) throw qres.error;
@@ -440,6 +467,7 @@ export async function acceptOffer(riderId: string, orderId: string) {
 }
 
 export async function confirmPickup(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.confirmPickup(riderId, orderId);
   const supabase = getServiceClient();
   const ores = await supabase.from("orders").select("rider_id").eq("id", orderId).maybeSingle();
   if (ores.error) throw ores.error;
@@ -453,6 +481,7 @@ export async function confirmPickup(riderId: string, orderId: string) {
 }
 
 export async function confirmDelivered(riderId: string, orderId: string, enteredPin: string) {
+  if (!supabaseConfigured()) return memory.confirmDelivered(riderId, orderId, enteredPin);
   const supabase = getServiceClient();
   const ores = await supabase
     .from("orders")
@@ -485,12 +514,15 @@ export async function confirmDelivered(riderId: string, orderId: string, entered
 }
 
 export async function progressToGoing(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.progressToGoing(riderId, orderId);
   return await guardRiderProgress(riderId, orderId, "going_to_restaurant");
 }
 export async function progressToArrived(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.progressToArrived(riderId, orderId);
   return await guardRiderProgress(riderId, orderId, "arrived");
 }
 export async function progressToDelivering(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.progressToDelivering(riderId, orderId);
   return await guardRiderProgress(riderId, orderId, "delivering");
 }
 
@@ -508,20 +540,24 @@ async function guardRiderProgress(riderId: string, orderId: string, status: Orde
 }
 
 export async function merchantAccept(orderId: string) {
+  if (!supabaseConfigured()) return memory.merchantAccept(orderId);
   await updateOrderStatus(orderId, "restaurant_accepted");
   return true;
 }
 export async function merchantSetPreparing(orderId: string) {
+  if (!supabaseConfigured()) return memory.merchantSetPreparing(orderId);
   await updateOrderStatus(orderId, "preparing");
   return true;
 }
 export async function merchantSetReady(orderId: string) {
+  if (!supabaseConfigured()) return memory.merchantSetReady(orderId);
   await updateOrderStatus(orderId, "rider_searching");
   return true;
 }
 
 // Demo users accessor
 export async function getDemoUsers() {
+  if (!supabaseConfigured()) return memory.getDemoUsers();
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("users")

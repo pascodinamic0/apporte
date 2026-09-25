@@ -53,7 +53,19 @@ values
   ('mi_pizza_2','rest_pizza_inn','Pizza Poulet (M)','Poulet, oignons, poivrons',11,true,'/images/mi_pizza_2.jpg','Pizza'),
   ('mi_poulet_1','rest_maison_poulet','Poulet Grillé','Demi poulet grillé',12,true,'/images/mi_poulet_1.jpg','Poulet'),
   ('mi_flore_1','rest_chez_flore','Saka-Saka','Feuilles de manioc, arachides',5,true,'/images/mi_flore_1.jpg','Congolais'),
-  ('mi_bistrot_1','rest_bistrot','Steak Frites','Steak, frites et salade',13,true,'/images/mi_bistrot_1.jpg','Bistrot')
+  ('mi_bistrot_1','rest_bistrot','Steak Frites','Steak, frites et salade',13,true,'/images/mi_bistrot_1.jpg','Bistrot'),
+  ('mi_orient_1','rest_orient','Nouilles sautées','Légumes, soja et nouilles croustillantes',9,true,'/images/sushi.jpg','Asiatique'),
+  ('mi_orient_2','rest_orient','Poisson à la vapeur','Gingembre, ciboule et riz',12,true,'/images/fish.jpg','Asiatique'),
+  ('mi_fuego_1','rest_fuego','Poulet braisé piquant','Mariné au pili pili, servi avec frites',11,true,'/images/chicken.jpg','Grillades'),
+  ('mi_fuego_2','rest_fuego','Brochettes mixtes','Bœuf et poulet, sauce maison',8,true,'/images/burger.jpg','Grillades'),
+  ('mi_mamba_1','rest_mamba','Poulet moambé','Sauce arachide, riz blanc',10,true,'/images/chicken.jpg','Congolais'),
+  ('mi_mamba_2','rest_mamba','Poisson braisé','Entier, piment et plantain',13,true,'/images/fish.jpg','Congolais'),
+  ('mi_baguette_1','rest_baguette','Baguette beurre','Sortie du four',1.5,true,'/images/bread.jpg','Boulangerie'),
+  ('mi_baguette_2','rest_baguette','Sandwich poulet','Baguette, poulet grillé, crudités',5,true,'/images/burger.jpg','Boulangerie'),
+  ('mi_sushi_1','rest_sushi','Assortiment maki','8 pièces, saumon et avocat',14,true,'/images/sushi.jpg','Sushi'),
+  ('mi_sushi_2','rest_sushi','Nigiri saumon','4 pièces',11,true,'/images/sushi.jpg','Sushi'),
+  ('mi_regal_1','rest_regal','Liboke de poisson','Cuit à la vapeur dans des feuilles',12,true,'/images/fish.jpg','Congolais'),
+  ('mi_regal_2','rest_regal','Poulet à la braise','Demi poulet, piment et frites',11,true,'/images/chicken.jpg','Congolais')
 on conflict (id) do update
 set restaurant_id = excluded.restaurant_id,
     name = excluded.name,

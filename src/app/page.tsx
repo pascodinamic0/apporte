@@ -34,7 +34,9 @@ export default async function Home() {
             alt="Hero"
             width={1600}
             height={1000}
-            className="h-20 w-full rounded-lg object-cover"
+            priority
+            sizes="(min-width: 1024px) 960px, 100vw"
+            className="aspect-[8/5] h-auto w-full rounded-lg object-cover"
           />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
