@@ -168,10 +168,58 @@ export async function createOrder(params: {
   paymentMethod: PaymentMethod;
 }): Promise<Order> {
   const supabase = getServiceClient();
-  const subtotal = params.items.reduce(
-    (sum, it) => sum + it.unitPriceUsd * it.quantity,
-    0,
-  );
+  // Recompute prices and names server-side from DB
+  const menuIds = params.items.filter((i) => i.kind === "food" && i.menuItemId).map((i) => i.menuItemId as string);
+  const prodIds = params.items.filter((i) => i.kind === "smart_find" && i.productId).map((i) => i.productId as string);
+  const [menuRes, prodRes] = await Promise.all([
+    menuIds.length ? supabase.from("menu_items").select("*").in("id", menuIds) : Promise.resolve({ data: [], error: null } as any),
+    prodIds.length ? supabase.from("smart_find_products").select("*").in("id", prodIds) : Promise.resolve({ data: [], error: null } as any),
+  ]);
+  if (menuRes.error) throw menuRes.error;
+  if (prodRes.error) throw prodRes.error;
+  const menuById = new Map<string, any>((menuRes.data || []).map((m: any) => [m.id, m]));
+  const prodById = new Map<string, any>((prodRes.data || []).map((p: any) => [p.id, p]));
+
+  const serverItems = params.items.map((it) => {
+    if (it.kind === "food" && it.menuItemId) {
+      const m = menuById.get(it.menuItemId);
+      if (!m) throw new Error("invalid_item");
+      if (m.available === false) throw new Error("unavailable_item");
+      // Enforce restaurant if provided
+      if (params.restaurantId && m.restaurant_id !== params.restaurantId) throw new Error("invalid_restaurant_item");
+      return {
+        id: randomId("oi"),
+        order_id: "PENDING", // placeholder, filled later
+        kind: "food",
+        restaurant_id: m.restaurant_id,
+        menu_item_id: m.id,
+        product_id: null,
+        name: String(m.name),
+        quantity: Number(it.quantity || 1),
+        unit_price_usd: Number(m.price_usd),
+        image_url: m.image_url ?? null,
+      };
+    }
+    if (it.kind === "smart_find" && it.productId) {
+      const p = prodById.get(it.productId);
+      if (!p) throw new Error("invalid_item");
+      return {
+        id: randomId("oi"),
+        order_id: "PENDING",
+        kind: "smart_find",
+        restaurant_id: null,
+        menu_item_id: null,
+        product_id: p.id,
+        name: String(p.name),
+        quantity: Number(it.quantity || 1),
+        unit_price_usd: Number(p.price_usd),
+        image_url: p.image_url ?? null,
+      };
+    }
+    throw new Error("invalid_item");
+  });
+
+  const subtotal = serverItems.reduce((sum, it) => sum + it.unit_price_usd * it.quantity, 0);
   const deliveryFee = params.restaurantId ? 2.5 : 3;
   const pin = generatePin(4);
   const now = Date.now();
@@ -197,19 +245,8 @@ export async function createOrder(params: {
   };
   const ins = await supabase.from("orders").insert(orderRow);
   if (ins.error) throw ins.error;
-  // Insert items
-  const itemRows = params.items.map((it) => ({
-    id: randomId("oi"),
-    order_id: id,
-    kind: it.kind,
-    restaurant_id: it.restaurantId ?? null,
-    menu_item_id: it.menuItemId ?? null,
-    product_id: it.productId ?? null,
-    name: it.name,
-    quantity: it.quantity,
-    unit_price_usd: it.unitPriceUsd,
-    image_url: it.imageUrl ?? null,
-  }));
+  // Insert items with server-computed prices
+  const itemRows = serverItems.map((row) => ({ ...row, order_id: id }));
   const insItems = await supabase.from("order_items").insert(itemRows);
   if (insItems.error) {
     await supabase.from("orders").delete().eq("id", id);

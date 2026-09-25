@@ -45,14 +45,22 @@ export async function POST(req: NextRequest) {
   if (!items?.length) {
     return NextResponse.json({ error: "missing_items" }, { status: 400 });
   }
-  const order = await createOrder({
-    customerId: user.id,
-    restaurantId,
-    items,
-    address,
-    zone,
-    paymentMethod,
-  });
-  return NextResponse.json({ ok: true, order });
+  try {
+    const order = await createOrder({
+      customerId: user.id,
+      restaurantId,
+      items,
+      address,
+      zone,
+      paymentMethod,
+    });
+    return NextResponse.json({ ok: true, order });
+  } catch (e: any) {
+    const msg = String(e?.message || "");
+    if (["invalid_item", "unavailable_item", "invalid_restaurant_item"].includes(msg)) {
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
 

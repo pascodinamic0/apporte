@@ -53,15 +53,34 @@ export async function PATCH(
   const { action, status, rating, comment, note, by } = body;
   const { id } = await context.params;
   const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const order = await getOrder(id);
   if (!order) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  const isAdmin = user?.role === "admin";
-  const isCustomer = user?.id === order.customerId;
-  const isMerchant = user?.role === "merchant" && user.merchantId && user.merchantId === order.restaurantId;
-  const isRider = user?.role === "rider" && user.riderId && user.riderId === order.riderId;
+  const isAdmin = user.role === "admin";
+  const isCustomer = user.id === order.customerId;
+  const isMerchant = user.role === "merchant" && user.merchantId && user.merchantId === order.restaurantId;
+  const isAssignedRider = user.role === "rider" && user.riderId && user.riderId === order.riderId;
+  let isCurrentOfferHolder = false;
+  if (user.role === "rider" && user.riderId && order.status === "rider_searching") {
+    const supabase = getServiceClient();
+    const q = await supabase.from("dispatch_queues").select("*").eq("order_id", order.id).maybeSingle();
+    if (!q.error && q.data) {
+      const idx = Math.max(0, q.data.current_index ?? 0);
+      const rid = (Array.isArray(q.data.rider_ids) ? q.data.rider_ids[idx] : undefined) as string | undefined;
+      const notExpired = q.data.expire_at && new Date(q.data.expire_at).getTime() > Date.now();
+      isCurrentOfferHolder = notExpired && rid === user.riderId;
+    }
+  }
+  if (!isCustomer && !isAdmin && !isMerchant && !isAssignedRider && !isCurrentOfferHolder) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   function badAuth() {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  if (!action) {
+    return NextResponse.json({ error: "bad_request", reason: "missing_action" }, { status: 400 });
   }
 
   if (action === "update_status" && status) {
@@ -82,6 +101,8 @@ export async function PATCH(
   } else if (action === "support_note" && note && by) {
     if (!isAdmin && !isMerchant) return badAuth();
     await addSupportNote(id, note, user?.id || "system");
+  } else {
+    return NextResponse.json({ error: "bad_request", reason: "unknown_action" }, { status: 400 });
   }
   const updated = await getOrder(id);
   if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });
