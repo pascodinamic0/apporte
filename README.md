@@ -7,19 +7,25 @@ Tech stack
 - Next.js (App Router) + TypeScript
 - Tailwind CSS + lightweight shadcn‑style UI components
 - PWA: manifest + service worker (installable)
-- Auth: Clerk (optional), plus Demo Mode with role switcher and demo accounts
-- Data: Demo mode in‑memory store with Kinshasa seed data (Gombe). Drizzle/Neon placeholder ready via envs (not required).
+- Auth: Demo Mode with role switcher (Clerk optional)
+- Data: **Supabase Postgres** (server-only service role client)
 
-Quick start (Demo Mode)
+Quick start
 1) Install deps:
 ```bash
 npm install
 ```
-2) Start dev server (uses port 43219 in this guide):
+2) Copy env and set Supabase credentials:
+```bash
+cp .env.example .env.local
+# NEXT_PUBLIC_SUPABASE_URL=...
+# SUPABASE_SERVICE_ROLE_KEY=...
+```
+3) Apply schema + seed (see `supabase/README.md`), then:
 ```bash
 npm run dev -- -p 43219
 ```
-3) Open http://localhost:43219 and go to `/demo` to pick a demo account.
+4) Open http://localhost:43219 and go to `/demo` to pick a demo account.
 
 Demo accounts (/demo)
 - customer@demo.apporte.cd / Passw0rd!
@@ -33,27 +39,25 @@ MVP flows (happy path)
 - Rider: Passer en Online → Recevoir offre → Accepter → Vers pickup → Arrivé → Récupéré → En livraison → Entrer PIN → Terminer.
 - Admin: Voir listes (commandes, livreurs, commerçants, clients) + métriques de base.
 
-Environment variables (.env.example)
-- Clerk (optional):
-  - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-  - CLERK_SECRET_KEY=
-- Database (optional; not required for demo):
-  - DATABASE_URL=
-- NEXT_PUBLIC_BASE_URL= (optional, for server actions absolute URL)
+Environment variables
+- Required (production):
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY` (server only; never expose to the browser)
+- Optional:
+  - Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+  - `NEXT_PUBLIC_BASE_URL`
 
 Build & production
 ```bash
 npm run build
 npm start -p 43219
 ```
-If env vars are absent, the app runs fully in Demo Mode with seed data.
 
 Deploy (Vercel)
-- Add env vars if integrating Clerk/Neon; otherwise Demo Mode will run without secrets.
+- Set the two Supabase env vars on the Vercel project (Production + Preview).
+- Run the SQL migration then seed once against your Supabase project (`supabase/README.md`).
 - `vercel.json` is included.
 
 Notes
 - Pilot zone: Gombe; pricing in USD (CDF future support).
-- PWA: `manifest` and `sw.js` included. Add PNG icons as needed for stores/devices.
-- This MVP intentionally avoids non‑MVP features (AI, wallet, GPS maps, etc.) per Blueprint §44.
-
+- This MVP intentionally avoids non‑MVP features (AI, wallet, live GPS maps, etc.) per Blueprint §44.

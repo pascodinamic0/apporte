@@ -2,7 +2,7 @@ import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/l
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import Link from "next/link";
 import { requireRole } from "@/src/lib/auth";
-import { statusLabelFr } from "@/src/lib/utils";
+import { articleCountLabel, statusLabelFr } from "@/src/lib/utils";
 import { SafeImage } from "@/src/components/SafeImage";
 import { Stagger } from "@/src/components/Stagger";
 
@@ -69,7 +69,7 @@ export default async function AdminPage() {
           {orders.slice(0, 8).map((o) => (
             <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
               <div className="truncate">
-                #{o.id.slice(-6)} • {o.zone} • {o.items.length} article{ o.items.length>1 ? "s" : "" }
+                #{o.id.slice(-6)} • {o.zone} • {articleCountLabel(o.items)}
               </div>
               <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{statusLabelFr(o.status)}</div>
             </Link>
