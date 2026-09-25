@@ -13,21 +13,23 @@ export default function CartPage() {
     <div className="py-2">
       <h1 className="text-xl font-semibold mb-3">Panier</h1>
       {items.length === 0 && (
-        <div className="mb-3 text-sm">
-          Besoin d’idées ?{" "}
-          <Link href="/smart-finds" className="text-emerald-700 underline">
-            Découvre les Trouvailles
-          </Link>
+        <div className="mb-4">
+          <div className="text-gray-600 flex flex-col items-center justify-center py-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/empty-cart.png" alt="" className="h-24 w-auto mb-3" />
+            <div className="mb-3 text-sm">Ton panier est vide.</div>
+            <div className="flex gap-2">
+              <Link href="/smart-finds">
+                <Button variant="secondary">Découvrir les Trouvailles</Button>
+              </Link>
+              <Link href="/food">
+                <Button variant="outline">Voir la nourriture</Button>
+              </Link>
+            </div>
+          </div>
         </div>
       )}
       <div className="grid gap-3">
-        {items.length === 0 && (
-          <div className="text-gray-600 flex flex-col items-center justify-center py-10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/apporte.svg" alt="" className="h-12 w-12 mb-2" />
-            Ton panier est vide.
-          </div>
-        )}
         {items.map((i) => (
           <Card key={i.id}>
             <CardHeader className="flex items-center justify-between">
@@ -56,9 +58,15 @@ export default function CartPage() {
           <Button variant="outline" onClick={clear}>
             Vider
           </Button>
-          <Link href="/checkout">
-            <Button>Passer à la caisse</Button>
-          </Link>
+          {items.length > 0 ? (
+            <Link href="/checkout">
+              <Button>Passer à la caisse</Button>
+            </Link>
+          ) : (
+            <Button disabled aria-disabled>
+              Passer à la caisse
+            </Button>
+          )}
         </div>
       </div>
     </div>
