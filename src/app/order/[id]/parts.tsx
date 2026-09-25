@@ -16,12 +16,21 @@ export function RateOrder({
   async function onSave() {
     setSaving(true);
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "rate", rating: stars, comment }),
       });
-      setSaved(true);
+      if (res.ok) {
+        setSaved(true);
+      } else {
+        // Keep form visible if server refused (e.g., not delivered, already rated, invalid)
+        // Optionally surface a toast; simple alert for now in this scoped fix
+        try {
+          const data = await res.json().catch(() => ({}));
+          alert("Impossible d’enregistrer l’avis." + (data?.reason ? ` (${data.reason})` : ""));
+        } catch {}
+      }
     } finally {
       setSaving(false);
     }

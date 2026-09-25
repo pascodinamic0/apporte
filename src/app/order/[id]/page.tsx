@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getOrder } from "@/src/lib/data/db";
-import { RateOrder } from "./parts";
 import { OrderClient } from "./OrderClient";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +29,6 @@ export default async function OrderPage({
   return (
     <div className="py-2">
       <OrderClient orderId={order.id} />
-      {order.status === "delivered" && <RateOrder orderId={order.id} existing={order.rating} />}
     </div>
   );
 }
