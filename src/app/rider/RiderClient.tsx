@@ -13,6 +13,13 @@ type Offer = {
   etaMinutes: number;
   earningsUsd: number;
   expiresAt: number;
+  // enriched:
+  deliveryAddress?: string;
+  deliveryZone?: string;
+  firstItemName?: string;
+  firstItemImageUrl?: string;
+  pickupName?: string;
+  pickupZone?: string;
 } | null;
 
 export function RiderClient({ riderId }: { riderId: string }) {
@@ -30,25 +37,25 @@ export function RiderClient({ riderId }: { riderId: string }) {
       const r = await fetch(`/api/dispatch/offer?riderId=${riderId}`);
       const data = await r.json();
       setOffer(data.offer);
+      if (data.offer) {
+        setOrderCover(
+          data.offer.firstItemImageUrl ? { url: data.offer.firstItemImageUrl, name: data.offer.firstItemName } : null,
+        );
+        setOrderInfo({
+          address: data.offer.deliveryAddress,
+          zone: data.offer.deliveryZone,
+          pickupName: data.offer.pickupName,
+          pickupZone: data.offer.pickupZone,
+        });
+      } else {
+        setOrderCover(null);
+        setOrderInfo(null);
+      }
     }, 3000);
     return () => clearInterval(id);
   }, [status, orderId, riderId]);
 
-  useEffect(() => {
-    (async () => {
-      if (!offer) return;
-      try {
-        const res = await fetch(`/api/orders/${offer.orderId}`, { cache: "no-store" });
-        const data = await res.json();
-        const o = data.order;
-        const cover = o?.items?.[0]?.imageUrl || null;
-        setOrderCover(cover ? { url: cover, name: o?.items?.[0]?.name } : null);
-        setOrderInfo(o);
-      } catch {
-        setOrderCover(null);
-      }
-    })();
-  }, [offer]);
+  // Removed pre-assign GET; data comes from offer payload now
 
   async function setRiderStatus(s: "offline" | "online" | "busy") {
     setStatus(s);
@@ -137,8 +144,8 @@ export function RiderClient({ riderId }: { riderId: string }) {
             {orderInfo && (
               <div className="rounded-lg bg-gray-50 p-3">
                 <div className="font-medium">Client</div>
-                <div className="text-gray-700">{orderInfo.address}</div>
-                <div className="text-gray-600 text-xs mt-1">Zone: {orderInfo.zone}</div>
+                <div className="text-gray-700">{orderInfo.address || "—"}</div>
+                <div className="text-gray-600 text-xs mt-1">Zone: {orderInfo.zone || "—"}</div>
               </div>
             )}
             <div>Pickup: {offer.pickupDistanceKm} km</div>

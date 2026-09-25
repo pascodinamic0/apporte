@@ -541,6 +541,39 @@ async function buildOffer(orderId: string, riderId: string) {
   } else {
     pickupDistance = haversineKm(rider.latitude, rider.longitude, HUB_LAT, HUB_LON);
   }
+  // Fetch first item for thumbnail/name
+  let firstItemName: string | undefined = undefined;
+  let firstItemImageUrl: string | undefined = undefined;
+  const iRes = await supabase
+    .from("order_items")
+    .select("name,image_url,menu_item_id")
+    .eq("order_id", orderId)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (!iRes.error && iRes.data) {
+    firstItemName = (iRes.data as any).name || undefined;
+    firstItemImageUrl = (iRes.data as any).image_url || undefined;
+    // Backfill from menu_items if missing
+    if (!firstItemImageUrl && (iRes.data as any).menu_item_id) {
+      const m = await supabase
+        .from("menu_items")
+        .select("image_url")
+        .eq("id", (iRes.data as any).menu_item_id)
+        .maybeSingle();
+      if (!m.error && m.data) firstItemImageUrl = (m.data as any).image_url || undefined;
+    }
+  }
+  // Pickup label/name
+  let pickupName = "Dépôt Smart Finds";
+  let pickupZone = "Gombe";
+  if (o.restaurantId) {
+    const rest = await getRestaurant(o.restaurantId);
+    if (rest) {
+      pickupName = rest.name;
+      pickupZone = rest.zone;
+    }
+  }
   const deliveryDistance = 2.1;
   const eta = Math.round(pickupDistance * 6 + deliveryDistance * 6 + 6);
   return {
@@ -551,6 +584,13 @@ async function buildOffer(orderId: string, riderId: string) {
     etaMinutes: eta,
     earningsUsd: estimateEarningsUsd(o),
     expiresAt: Date.now() + 30_000,
+    // Enriched fields for rider offer card
+    deliveryAddress: o.address,
+    deliveryZone: o.zone,
+    firstItemName,
+    firstItemImageUrl,
+    pickupName,
+    pickupZone,
   };
 }
 

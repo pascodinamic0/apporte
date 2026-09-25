@@ -9,6 +9,7 @@ import {
   updateOrderStatus,
 } from "@/src/lib/data/db";
 import { getCurrentUser } from "@/src/lib/auth";
+import { getServiceClient } from "@/src/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
@@ -21,8 +22,19 @@ export async function GET(
   const isCustomer = !!user && user.id === order.customerId;
   const isAdmin = user?.role === "admin";
   const isMerchant = user?.role === "merchant" && user.merchantId && user.merchantId === order.restaurantId;
-  const isRider = user?.role === "rider" && user.riderId && user.riderId === order.riderId;
-  if (!isCustomer && !isAdmin && !isMerchant && !isRider) {
+  const isAssignedRider = user?.role === "rider" && user.riderId && user.riderId === order.riderId;
+  let isCurrentOfferHolder = false;
+  if (user?.role === "rider" && user.riderId && order.status === "rider_searching") {
+    const supabase = getServiceClient();
+    const q = await supabase.from("dispatch_queues").select("*").eq("order_id", order.id).maybeSingle();
+    if (!q.error && q.data) {
+      const idx = Math.max(0, q.data.current_index ?? 0);
+      const rid = (Array.isArray(q.data.rider_ids) ? q.data.rider_ids[idx] : undefined) as string | undefined;
+      const notExpired = q.data.expire_at && new Date(q.data.expire_at).getTime() > Date.now();
+      isCurrentOfferHolder = notExpired && rid === user.riderId;
+    }
+  }
+  if (!isCustomer && !isAdmin && !isMerchant && !isAssignedRider && !isCurrentOfferHolder) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   // Strip PIN for non-owners
