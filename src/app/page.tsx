@@ -62,9 +62,7 @@ export default async function Home() {
       <section className="mt-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Restaurants à la une</h2>
-          <Link href="/food" className="text-sm text-emerald-700 underline">
-            Voir tout
-          </Link>
+          <Link href="/food"><Button variant="secondary" size="sm">Voir tout</Button></Link>
         </div>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Stagger>
@@ -100,9 +98,7 @@ export default async function Home() {
       <section className="mt-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Smart Finds</h2>
-          <Link href="/smart-finds" className="text-sm text-emerald-700 underline">
-            Tout voir
-          </Link>
+          <Link href="/smart-finds"><Button variant="secondary" size="sm">Tout voir</Button></Link>
         </div>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <Stagger delayBase={0.05}>

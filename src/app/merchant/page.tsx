@@ -22,9 +22,7 @@ export default async function MerchantHome() {
     return (
       <div className="py-6">
         <div className="text-lg">Accès commerçant requis.</div>
-        <Link href="/demo" className="text-emerald-700 underline">
-          Ouvrir la page Démo
-        </Link>
+        <Link href="/demo"><button className="inline-flex h-11 px-4 rounded-md bg-emerald-700 text-white">Ouvrir la page Démo</button></Link>
       </div>
     );
   }
@@ -61,7 +59,7 @@ export default async function MerchantHome() {
         {orders.length === 0 && (
           <div className="text-gray-600 flex flex-col items-center justify-center py-10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/apporte.svg" alt="" className="h-12 w-12 mb-2" />
+            <img src="/images/empty-merchant.png" alt="" className="h-20 w-auto mb-2" />
             Aucune commande.
           </div>
         )}

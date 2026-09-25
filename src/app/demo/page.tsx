@@ -76,7 +76,7 @@ export default function DemoPage() {
       <div className="mt-6 text-sm text-gray-700">
         Mot de passe (démo): <code>Passw0rd!</code> — Simulation, pas de vrai paiement.
         <div className="mt-2">
-          <Link href="/credits" className="text-emerald-700 underline">À propos / Crédits photos</Link>
+        <Link href="/credits"><button className="inline-flex h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 text-sm">À propos / Crédits photos</button></Link>
         </div>
       </div>
     </div>

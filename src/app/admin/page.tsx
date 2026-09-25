@@ -14,9 +14,7 @@ export default async function AdminPage() {
     return (
       <div className="py-6">
         <div className="text-lg">Accès admin requis.</div>
-        <Link href="/demo" className="text-emerald-700 underline">
-          Ouvrir la page Démo
-        </Link>
+        <Link href="/demo"><button className="inline-flex h-11 px-4 rounded-md bg-emerald-700 text-white">Ouvrir la page Démo</button></Link>
       </div>
     );
   }
@@ -67,7 +65,7 @@ export default async function AdminPage() {
           <ListCard title="Commandes récentes">
           <Stagger>
           {orders.slice(0, 8).map((o) => (
-            <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
+            <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm">
               <div className="truncate">
                 #{o.id.slice(-6)} • {o.zone} • {o.items.length} article{ o.items.length>1 ? "s" : "" }
               </div>

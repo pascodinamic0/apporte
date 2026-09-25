@@ -9,9 +9,7 @@ export default async function RiderHome() {
     return (
       <div className="py-6">
         <div className="text-lg">Accès livreur requis.</div>
-        <Link href="/demo" className="text-emerald-700 underline">
-          Ouvrir la page Démo
-        </Link>
+        <Link href="/demo"><button className="inline-flex h-11 px-4 rounded-md bg-emerald-700 text-white">Ouvrir la page Démo</button></Link>
       </div>
     );
   }
