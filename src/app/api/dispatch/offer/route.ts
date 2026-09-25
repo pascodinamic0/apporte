@@ -9,18 +9,19 @@ import {
   confirmPickup,
   confirmDelivered,
 } from "@/src/lib/data/db";
+import { getCurrentUser } from "@/src/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const riderId = searchParams.get("riderId") || "";
-  if (!riderId) return NextResponse.json({ offer: null });
-  const offer = await nextOfferForRider(riderId);
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (user.role !== "rider" || !user.riderId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const offer = await nextOfferForRider(user.riderId);
   return NextResponse.json({ offer });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { action, riderId, orderId, pin } = body as {
+  const { action, orderId, pin } = body as {
     action:
       | "accept"
       | "decline"
@@ -29,10 +30,13 @@ export async function POST(req: NextRequest) {
       | "picked_up"
       | "delivering"
       | "delivered";
-    riderId: string;
     orderId: string;
     pin?: string;
   };
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (user.role !== "rider" || !user.riderId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const riderId = user.riderId;
   let ok = false;
   let delivered = null as null | { ok: boolean; reason?: string };
   switch (action) {

@@ -130,6 +130,11 @@ export function RiderClient({ riderId }: { riderId: string }) {
             <div className="rounded-lg overflow-hidden">
               <SafeImage src="/images/map.jpg" alt="Carte de Kinshasa" width={1200} height={800} className="h-28 w-full object-cover" />
             </div>
+            {!!offer?.pickupName && (
+              <div className="text-gray-700">
+                Pickup: <span className="font-medium">{offer.pickupName}</span>
+              </div>
+            )}
             {orderCover?.url && (
               <div className="mb-1">
                 <SafeImage
@@ -140,6 +145,9 @@ export function RiderClient({ riderId }: { riderId: string }) {
                   className="h-20 w-full rounded-md object-cover"
                 />
               </div>
+            )}
+            {!!offer?.firstItemName && (
+              <div className="text-gray-700">Article: <span className="font-medium">{offer.firstItemName}</span></div>
             )}
             {orderInfo && (
               <div className="rounded-lg bg-gray-50 p-3">
