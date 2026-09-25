@@ -96,7 +96,7 @@ export function OrderClient({ orderId }: { orderId: string }) {
                 >
                   {i + 1}
                 </span>
-                <h3 className="font-medium capitalize">{labelForStatus(s)}</h3>
+                <h3 className="font-medium">{labelForStatus(s)}</h3>
                 {i === idx && order.status !== "delivered" && (
                   <p className="text-sm text-gray-600">Étape en cours…</p>
                 )}

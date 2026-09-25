@@ -144,14 +144,26 @@ export function RiderClient({ riderId }: { riderId: string }) {
             <div>Livraison: {offer.deliveryDistanceKm} km</div>
             <div>Temps estimé: {offer.etaMinutes} min</div>
             <div>Gain: ${offer.earningsUsd.toFixed(2)}</div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <Button className="col-span-2" onClick={() => act("accept")}>Accepter</Button>
+            <div className="h-2" />
+          </CardContent>
+        </Card>
+      )}
+      {offer && status === "online" && (
+        <div
+          className="fixed left-0 right-0 z-50"
+          style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
+        >
+          <div className="mx-auto max-w-5xl px-4">
+            <div className="grid grid-cols-3 gap-2 bg-white/70 backdrop-blur rounded-full p-2 shadow-lg ring-1 ring-black/5">
+              <Button className="col-span-2" onClick={() => act("accept")}>
+                Accepter
+              </Button>
               <Button variant="outline" onClick={() => act("decline")}>
                 Refuser
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {orderId && (

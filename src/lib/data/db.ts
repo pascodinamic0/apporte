@@ -127,6 +127,10 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   if (error) throw error;
   if (!data) return undefined;
   const base = mapOrderRow(data);
+  // Lazily advance expired dispatch offers
+  if (base.status === "rider_searching") {
+    await maybeAdvanceOfferQueue(base.id);
+  }
   const [itemsRes, notesRes, menuLookup] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id).order("created_at"),
     supabase
@@ -300,11 +304,49 @@ export async function nextOfferForRider(riderId: string) {
     const o = mapOrderRow(row);
     const q = dqByOrder.get(o.id);
     if (!q) continue;
-    const idx = Math.max(0, q.current_index);
-    const currentRiderId: string | undefined = q.rider_ids?.[idx];
+    // If expired or pointing to an offline rider, advance lazily
+    const now = Date.now();
+    let idx = Math.max(0, q.current_index ?? 0);
+    let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+    const current: string | undefined = riderIds[idx];
+    // Helper: ensure current index points to an online rider
+    async function normalizeIndex(startIndex: number) {
+      if (!riderIds.length) {
+        // Rebuild from scratch when queue is empty
+        await buildOfferQueueForOrder(o);
+        const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+        if (!fresh.error && fresh.data) {
+          riderIds = fresh.data.rider_ids || [];
+          idx = Math.max(0, fresh.data.current_index ?? 0);
+        }
+      }
+      let tries = 0;
+      let i = startIndex;
+      while (tries < Math.max(1, riderIds.length)) {
+        const rid = riderIds[i];
+        if (rid) {
+          const rr = await supabase.from("riders").select("status").eq("id", rid).maybeSingle();
+          if (!rr.error && rr.data && rr.data.status === "online") {
+            return i;
+          }
+        }
+        i = (i + 1) % Math.max(1, riderIds.length);
+        tries++;
+      }
+      return startIndex;
+    }
+    const isExpired = q.expire_at ? new Date(q.expire_at).getTime() <= now : true;
+    if (isExpired || !current) {
+      idx = await normalizeIndex((idx + 1) % Math.max(1, riderIds.length || 1));
+      await supabase
+        .from("dispatch_queues")
+        .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
+        .eq("order_id", o.id);
+    }
+    const currentRiderId: string | undefined = (riderIds[idx] ?? riderIds[0]) as string | undefined;
     if (currentRiderId === riderId) {
       const offer = await buildOffer(o.id, riderId);
-      // Set expiry ~30s
+      // Expiry is already based on offer creation; refresh to keep moving
       await supabase
         .from("dispatch_queues")
         .update({ expire_at: new Date(Date.now() + 30_000).toISOString() })
@@ -477,12 +519,18 @@ async function buildOffer(orderId: string, riderId: string) {
   if (!oRes.data || !rRes.data) return null;
   const o = mapOrderRow(oRes.data);
   const rider = mapRider(rRes.data);
+  // Pickup distance: restaurant when available; Smart Finds hub otherwise
+  // Smart Finds hub (Kinshasa, Gombe) — approximate coordinates
+  const HUB_LAT = -4.312;
+  const HUB_LON = 15.31;
   let pickupDistance = 1.2;
   if (o.restaurantId) {
     const rest = await getRestaurant(o.restaurantId);
     if (rest) {
       pickupDistance = haversineKm(rider.latitude, rider.longitude, rest.latitude, rest.longitude);
     }
+  } else {
+    pickupDistance = haversineKm(rider.latitude, rider.longitude, HUB_LAT, HUB_LON);
   }
   const deliveryDistance = 2.1;
   const eta = Math.round(pickupDistance * 6 + deliveryDistance * 6 + 6);
@@ -521,11 +569,30 @@ async function buildOfferQueueForOrder(order: Order) {
         order_id: order.id,
         rider_ids: ranked,
         current_index: 0,
-        expire_at: null,
+        expire_at: new Date(Date.now() + 30_000).toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "order_id" },
     );
+}
+
+// Advance to next rider if current offer expired or invalid. Called on reads.
+async function maybeAdvanceOfferQueue(orderId: string) {
+  const supabase = getServiceClient();
+  const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
+  if (qres.error) return;
+  const q = qres.data;
+  if (!q) return;
+  const now = Date.now();
+  const isExpired = !q.expire_at || new Date(q.expire_at).getTime() <= now;
+  let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+  if (!isExpired && riderIds.length) return;
+  let idx = (q.current_index ?? 0) + 1;
+  if (riderIds.length) idx = idx % riderIds.length;
+  await supabase
+    .from("dispatch_queues")
+    .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
+    .eq("order_id", orderId);
 }
 
 async function attachItemsAndNotes(orders: Order[]): Promise<Order[]> {
