@@ -97,7 +97,20 @@ export async function PATCH(
     await merchantSetReady(id);
   } else if (action === "rate" && rating) {
     if (!isCustomer) return badAuth();
-    await setOrderRating(id, rating, comment);
+    // Accept only whole numbers 1..5
+    const rNum = Number(rating);
+    if (!Number.isInteger(rNum) || rNum < 1 || rNum > 5) {
+      return NextResponse.json({ error: "bad_request", reason: "invalid_rating" }, { status: 400 });
+    }
+    // Only after delivery
+    if (order.status !== "delivered") {
+      return NextResponse.json({ error: "conflict", reason: "not_delivered" }, { status: 409 });
+    }
+    // Only once
+    if (order.rating?.stars != null) {
+      return NextResponse.json({ error: "conflict", reason: "already_rated" }, { status: 409 });
+    }
+    await setOrderRating(id, rNum as 1 | 2 | 3 | 4 | 5, comment);
   } else if (action === "support_note" && note && by) {
     if (!isAdmin && !isMerchant) return badAuth();
     await addSupportNote(id, note, user?.id || "system");
