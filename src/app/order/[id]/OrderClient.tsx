@@ -18,22 +18,22 @@ const steps = [
   "delivered",
 ] as const;
 
-function labelForStatus(s: string) {
+function labelForStatus(s: string, isSmart: boolean) {
   switch (s) {
     case "placed":
       return "Commande passée";
     case "restaurant_accepted":
-      return "Restaurant a accepté";
+      return isSmart ? "Commande validée" : "Restaurant a accepté";
     case "preparing":
-      return "En préparation";
+      return isSmart ? "Préparation en cours" : "En préparation";
     case "rider_searching":
       return "Recherche d’un livreur";
     case "rider_assigned":
       return "Livreur assigné";
     case "going_to_restaurant":
-      return "En route vers le pickup";
+      return isSmart ? "En route vers le dépôt" : "En route vers le pickup";
     case "arrived":
-      return "Livreur arrivé";
+      return isSmart ? "Arrivé au dépôt" : "Livreur arrivé";
     case "picked_up":
       return "Commande récupérée";
     case "delivering":
@@ -65,7 +65,9 @@ export function OrderClient({ orderId }: { orderId: string }) {
   }, [orderId]);
 
   if (!order) return null;
-  const idx = steps.indexOf(order.status);
+  const isSmart = !order.restaurantId;
+  const activeSteps = isSmart ? steps.filter((s) => s !== "restaurant_accepted" && s !== "preparing") : steps;
+  const idx = activeSteps.indexOf(order.status);
   return (
     <>
       <div className="rounded-lg overflow-hidden mb-2">
@@ -87,7 +89,7 @@ export function OrderClient({ orderId }: { orderId: string }) {
         <CardHeader>Suivi</CardHeader>
         <CardContent>
           <ol className="relative border-s border-gray-200">
-            {steps.map((s, i) => (
+            {activeSteps.map((s, i) => (
               <li key={s} className="mb-6 ms-6">
                 <span
                   className={`absolute -start-3 flex h-6 w-6 items-center justify-center rounded-full ${
@@ -96,7 +98,7 @@ export function OrderClient({ orderId }: { orderId: string }) {
                 >
                   {i + 1}
                 </span>
-                <h3 className="font-medium">{labelForStatus(s)}</h3>
+                <h3 className="font-medium">{labelForStatus(s, isSmart)}</h3>
                 {i === idx && order.status !== "delivered" && (
                   <p className="text-sm text-gray-600">Étape en cours…</p>
                 )}

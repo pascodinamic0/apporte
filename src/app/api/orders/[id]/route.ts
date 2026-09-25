@@ -18,8 +18,15 @@ export async function GET(
   const order = await getOrder(id);
   if (!order) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const user = await getCurrentUser();
-  if (!user || user.id !== order.customerId) {
-    // Strip PIN for non-owners
+  const isCustomer = !!user && user.id === order.customerId;
+  const isAdmin = user?.role === "admin";
+  const isMerchant = user?.role === "merchant" && user.merchantId && user.merchantId === order.restaurantId;
+  const isRider = user?.role === "rider" && user.riderId && user.riderId === order.riderId;
+  if (!isCustomer && !isAdmin && !isMerchant && !isRider) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  // Strip PIN for non-owners
+  if (!isCustomer) {
     const { pin, ...rest } = order as any;
     return NextResponse.json({ order: rest });
   }

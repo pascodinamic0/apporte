@@ -302,8 +302,14 @@ export async function nextOfferForRider(riderId: string) {
   const dqByOrder = new Map<string, any>((qres.data || []).map((q) => [q.order_id, q]));
   for (const row of ores.data || []) {
     const o = mapOrderRow(row);
-    const q = dqByOrder.get(o.id);
-    if (!q) continue;
+    let q = dqByOrder.get(o.id);
+    if (!q) {
+      // Repair missing queue lazily
+      await buildOfferQueueForOrder(o);
+      const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+      if (!fresh.error && fresh.data) q = fresh.data;
+      else continue;
+    }
     // If expired or pointing to an offline rider, advance lazily
     const now = Date.now();
     let idx = Math.max(0, q.current_index ?? 0);
@@ -342,15 +348,18 @@ export async function nextOfferForRider(riderId: string) {
         .from("dispatch_queues")
         .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
         .eq("order_id", o.id);
+      // Reload queue state after advancement
+      const re = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+      if (!re.error && re.data) {
+        q = re.data;
+        riderIds = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+        idx = Math.max(0, q.current_index ?? 0);
+      }
     }
     const currentRiderId: string | undefined = (riderIds[idx] ?? riderIds[0]) as string | undefined;
     if (currentRiderId === riderId) {
       const offer = await buildOffer(o.id, riderId);
-      // Expiry is already based on offer creation; refresh to keep moving
-      await supabase
-        .from("dispatch_queues")
-        .update({ expire_at: new Date(Date.now() + 30_000).toISOString() })
-        .eq("order_id", o.id);
+      // Do NOT touch expire_at on polling; it must not reset
       return offer;
     }
   }
@@ -548,6 +557,9 @@ async function buildOffer(orderId: string, riderId: string) {
 async function buildOfferQueueForOrder(order: Order) {
   const supabase = getServiceClient();
   const rest = order.restaurantId ? await getRestaurant(order.restaurantId) : undefined;
+  // Smart Finds hub when no restaurant
+  const HUB_LAT = -4.312;
+  const HUB_LON = 15.31;
   const { data, error } = await supabase.from("riders").select("*").eq("status", "online");
   if (error) throw error;
   const eligible = (data || []).map(mapRider);
@@ -556,7 +568,7 @@ async function buildOfferQueueForOrder(order: Order) {
       const pickup =
         rest?.latitude && rest.longitude
           ? haversineKm(r.latitude, r.longitude, rest.latitude, rest.longitude)
-          : 1 + Math.random();
+          : haversineKm(r.latitude, r.longitude, HUB_LAT, HUB_LON);
       const score = 100 - pickup * 10 + r.reliabilityPercent * 0.1;
       return { riderId: r.id, pickup, score };
     })
@@ -582,7 +594,14 @@ async function maybeAdvanceOfferQueue(orderId: string) {
   const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
   if (qres.error) return;
   const q = qres.data;
-  if (!q) return;
+  if (!q) {
+    // Repair missing queue lazily
+    const ores = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+    if (!ores.error && ores.data) {
+      await buildOfferQueueForOrder(mapOrderRow(ores.data));
+    }
+    return;
+  }
   const now = Date.now();
   const isExpired = !q.expire_at || new Date(q.expire_at).getTime() <= now;
   let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];

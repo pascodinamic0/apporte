@@ -22,6 +22,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
   const [pin, setPin] = useState("");
   const [orderCover, setOrderCover] = useState<{ url?: string; name?: string } | null>(null);
   const [orderInfo, setOrderInfo] = useState<any | null>(null);
+  const sticky = !!offer && status === "online";
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -98,7 +99,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
   }
 
   return (
-    <div className="py-2">
+    <div className="py-2" style={sticky ? { paddingBottom: "max(112px, calc(80px + 64px + env(safe-area-inset-bottom)))" } : undefined}>
       <h1 className="text-xl font-semibold mb-3">Livreur</h1>
       <Card>
         <CardHeader>Statut</CardHeader>
@@ -115,7 +116,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
         </CardContent>
       </Card>
 
-      {offer && status === "online" && (
+      {sticky && (
         <Card className="mt-4">
           <CardHeader>Nouvelle livraison</CardHeader>
           <CardContent className="grid gap-2 text-sm">
@@ -148,7 +149,7 @@ export function RiderClient({ riderId }: { riderId: string }) {
           </CardContent>
         </Card>
       )}
-      {offer && status === "online" && (
+      {sticky && (
         <div
           className="fixed left-0 right-0 z-50"
           style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
