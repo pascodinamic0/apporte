@@ -15,11 +15,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   restaurantId: undefined,
   addItem: (item, opts) => {
     const { items, restaurantId } = get();
-    const sameRestaurant =
-      !restaurantId || !opts?.restaurantId || restaurantId === opts.restaurantId;
+    const incomingRest = opts?.restaurantId;
+    const sameRestaurant = !restaurantId || !incomingRest || restaurantId === incomingRest;
+    if (!sameRestaurant && typeof window !== "undefined") {
+      const proceed = window.confirm(
+        "Ton panier contient des articles d’un autre restaurant. Le vider et ajouter celui-ci ?",
+      );
+      if (!proceed) return;
+    }
+    const baseItems = sameRestaurant ? items : [];
     set({
-      items: mergeItem(items, item),
-      restaurantId: sameRestaurant ? opts?.restaurantId ?? restaurantId : opts?.restaurantId,
+      items: mergeItem(baseItems, item),
+      restaurantId: incomingRest ?? restaurantId,
     });
   },
   removeItem: (id) => {

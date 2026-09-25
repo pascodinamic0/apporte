@@ -4,6 +4,7 @@ import { useCartStore } from "@/src/store/cart";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { formatPriceUSD } from "@/src/lib/utils";
+import { SafeImage } from "@/src/components/SafeImage";
 
 export default function CartPage() {
   const { items, clear, removeItem } = useCartStore();
@@ -21,7 +22,11 @@ export default function CartPage() {
       )}
       <div className="grid gap-3">
         {items.length === 0 && (
-          <div className="text-gray-600">Ton panier est vide.</div>
+          <div className="text-gray-600 flex flex-col items-center justify-center py-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/apporte.svg" alt="" className="h-12 w-12 mb-2" />
+            Ton panier est vide.
+          </div>
         )}
         {items.map((i) => (
           <Card key={i.id}>
@@ -34,7 +39,8 @@ export default function CartPage() {
                 {formatPriceUSD(i.unitPriceUsd * i.quantity)}
               </div>
             </CardHeader>
-            <CardContent className="flex justify-end">
+            <CardContent className="flex items-center justify-between">
+              <SafeImage src={i.imageUrl} alt={i.name} width={160} height={100} className="h-20 w-40 rounded-md object-cover" />
               <Button variant="outline" onClick={() => removeItem(i.id)}>
                 Retirer
               </Button>

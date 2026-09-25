@@ -127,17 +127,33 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   if (error) throw error;
   if (!data) return undefined;
   const base = mapOrderRow(data);
-  const [itemsRes, notesRes] = await Promise.all([
+  // Lazily advance expired dispatch offers
+  if (base.status === "rider_searching") {
+    await maybeAdvanceOfferQueue(base.id);
+  }
+  const [itemsRes, notesRes, menuLookup] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id).order("created_at"),
     supabase
       .from("support_notes")
       .select("*")
       .eq("order_id", id)
       .order("created_at", { ascending: true }),
+    supabase.from("menu_items").select("id,image_url"),
   ]);
   if (itemsRes.error) throw itemsRes.error;
   if (notesRes.error) throw notesRes.error;
   base.items = (itemsRes.data || []).map(mapOrderItem);
+  // Backfill missing images from current menu data
+  const menuById = new Map<string, string>();
+  if (!menuLookup.error) {
+    for (const m of menuLookup.data || []) {
+      if ((m as any).id) menuById.set((m as any).id, (m as any).image_url || null);
+    }
+  }
+  base.items = base.items.map((it) => ({
+    ...it,
+    imageUrl: it.imageUrl || (it.menuItemId ? menuById.get(it.menuItemId) || undefined : it.imageUrl),
+  }));
   const notes = (notesRes.data || []).map(mapSupportNote);
   base.supportNotes = notes.length ? notes : undefined;
   return base;
@@ -152,10 +168,58 @@ export async function createOrder(params: {
   paymentMethod: PaymentMethod;
 }): Promise<Order> {
   const supabase = getServiceClient();
-  const subtotal = params.items.reduce(
-    (sum, it) => sum + it.unitPriceUsd * it.quantity,
-    0,
-  );
+  // Recompute prices and names server-side from DB
+  const menuIds = params.items.filter((i) => i.kind === "food" && i.menuItemId).map((i) => i.menuItemId as string);
+  const prodIds = params.items.filter((i) => i.kind === "smart_find" && i.productId).map((i) => i.productId as string);
+  const [menuRes, prodRes] = await Promise.all([
+    menuIds.length ? supabase.from("menu_items").select("*").in("id", menuIds) : Promise.resolve({ data: [], error: null } as any),
+    prodIds.length ? supabase.from("smart_find_products").select("*").in("id", prodIds) : Promise.resolve({ data: [], error: null } as any),
+  ]);
+  if (menuRes.error) throw menuRes.error;
+  if (prodRes.error) throw prodRes.error;
+  const menuById = new Map<string, any>((menuRes.data || []).map((m: any) => [m.id, m]));
+  const prodById = new Map<string, any>((prodRes.data || []).map((p: any) => [p.id, p]));
+
+  const serverItems = params.items.map((it) => {
+    if (it.kind === "food" && it.menuItemId) {
+      const m = menuById.get(it.menuItemId);
+      if (!m) throw new Error("invalid_item");
+      if (m.available === false) throw new Error("unavailable_item");
+      // Enforce restaurant if provided
+      if (params.restaurantId && m.restaurant_id !== params.restaurantId) throw new Error("invalid_restaurant_item");
+      return {
+        id: randomId("oi"),
+        order_id: "PENDING", // placeholder, filled later
+        kind: "food",
+        restaurant_id: m.restaurant_id,
+        menu_item_id: m.id,
+        product_id: null,
+        name: String(m.name),
+        quantity: Number(it.quantity || 1),
+        unit_price_usd: Number(m.price_usd),
+        image_url: m.image_url ?? null,
+      };
+    }
+    if (it.kind === "smart_find" && it.productId) {
+      const p = prodById.get(it.productId);
+      if (!p) throw new Error("invalid_item");
+      return {
+        id: randomId("oi"),
+        order_id: "PENDING",
+        kind: "smart_find",
+        restaurant_id: null,
+        menu_item_id: null,
+        product_id: p.id,
+        name: String(p.name),
+        quantity: Number(it.quantity || 1),
+        unit_price_usd: Number(p.price_usd),
+        image_url: p.image_url ?? null,
+      };
+    }
+    throw new Error("invalid_item");
+  });
+
+  const subtotal = serverItems.reduce((sum, it) => sum + it.unit_price_usd * it.quantity, 0);
   const deliveryFee = params.restaurantId ? 2.5 : 3;
   const pin = generatePin(4);
   const now = Date.now();
@@ -171,7 +235,7 @@ export async function createOrder(params: {
     address: params.address,
     zone: params.zone ?? PILOT_ZONE,
     payment_method: params.paymentMethod,
-    status: "placed" as OrderStatus,
+    status: (params.restaurantId ? "placed" : "rider_searching") as OrderStatus,
     pin,
     created_at: new Date(now).toISOString(),
     updated_at: new Date(now).toISOString(),
@@ -179,23 +243,22 @@ export async function createOrder(params: {
     rating_comment: null,
     rating_created_at: null,
   };
-  const { error } = await supabase.from("orders").insert(orderRow);
-  if (error) throw error;
-  // Insert items
-  const itemRows = params.items.map((it) => ({
-    id: it.id || randomId("oi"),
-    order_id: id,
-    kind: it.kind,
-    restaurant_id: it.restaurantId ?? null,
-    menu_item_id: it.menuItemId ?? null,
-    product_id: it.productId ?? null,
-    name: it.name,
-    quantity: it.quantity,
-    unit_price_usd: it.unitPriceUsd,
-    image_url: it.imageUrl ?? null,
-  }));
+  const ins = await supabase.from("orders").insert(orderRow);
+  if (ins.error) throw ins.error;
+  // Insert items with server-computed prices
+  const itemRows = serverItems.map((row) => ({ ...row, order_id: id }));
   const insItems = await supabase.from("order_items").insert(itemRows);
-  if (insItems.error) throw insItems.error;
+  if (insItems.error) {
+    await supabase.from("orders").delete().eq("id", id);
+    throw insItems.error;
+  }
+  // If Smart Finds (no restaurant), immediately build the rider offer queue
+  if (!params.restaurantId) {
+    const fullNow = await getOrder(id);
+    if (fullNow) {
+      await buildOfferQueueForOrder(fullNow);
+    }
+  }
   // Return assembled
   const full = await getOrder(id);
   if (!full) throw new Error("Order creation failed");
@@ -276,17 +339,64 @@ export async function nextOfferForRider(riderId: string) {
   const dqByOrder = new Map<string, any>((qres.data || []).map((q) => [q.order_id, q]));
   for (const row of ores.data || []) {
     const o = mapOrderRow(row);
-    const q = dqByOrder.get(o.id);
-    if (!q) continue;
-    const idx = Math.max(0, q.current_index);
-    const currentRiderId: string | undefined = q.rider_ids?.[idx];
-    if (currentRiderId === riderId) {
-      const offer = await buildOffer(o.id, riderId);
-      // Set expiry ~30s
+    let q = dqByOrder.get(o.id);
+    if (!q) {
+      // Repair missing queue lazily
+      await buildOfferQueueForOrder(o);
+      const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+      if (!fresh.error && fresh.data) q = fresh.data;
+      else continue;
+    }
+    // If expired or pointing to an offline rider, advance lazily
+    const now = Date.now();
+    let idx = Math.max(0, q.current_index ?? 0);
+    let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+    const current: string | undefined = riderIds[idx];
+    // Helper: ensure current index points to an online rider
+    async function normalizeIndex(startIndex: number) {
+      if (!riderIds.length) {
+        // Rebuild from scratch when queue is empty
+        await buildOfferQueueForOrder(o);
+        const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+        if (!fresh.error && fresh.data) {
+          riderIds = fresh.data.rider_ids || [];
+          idx = Math.max(0, fresh.data.current_index ?? 0);
+        }
+      }
+      let tries = 0;
+      let i = startIndex;
+      while (tries < Math.max(1, riderIds.length)) {
+        const rid = riderIds[i];
+        if (rid) {
+          const rr = await supabase.from("riders").select("status").eq("id", rid).maybeSingle();
+          if (!rr.error && rr.data && rr.data.status === "online") {
+            return i;
+          }
+        }
+        i = (i + 1) % Math.max(1, riderIds.length);
+        tries++;
+      }
+      return startIndex;
+    }
+    const isExpired = q.expire_at ? new Date(q.expire_at).getTime() <= now : true;
+    if (isExpired || !current) {
+      idx = await normalizeIndex((idx + 1) % Math.max(1, riderIds.length || 1));
       await supabase
         .from("dispatch_queues")
-        .update({ expire_at: new Date(Date.now() + 30_000).toISOString() })
+        .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
         .eq("order_id", o.id);
+      // Reload queue state after advancement
+      const re = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
+      if (!re.error && re.data) {
+        q = re.data;
+        riderIds = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+        idx = Math.max(0, q.current_index ?? 0);
+      }
+    }
+    const currentRiderId: string | undefined = (riderIds[idx] ?? riderIds[0]) as string | undefined;
+    if (currentRiderId === riderId) {
+      const offer = await buildOffer(o.id, riderId);
+      // Do NOT touch expire_at on polling; it must not reset
       return offer;
     }
   }
@@ -455,11 +565,50 @@ async function buildOffer(orderId: string, riderId: string) {
   if (!oRes.data || !rRes.data) return null;
   const o = mapOrderRow(oRes.data);
   const rider = mapRider(rRes.data);
+  // Pickup distance: restaurant when available; Smart Finds hub otherwise
+  // Smart Finds hub (Kinshasa, Gombe) — approximate coordinates
+  const HUB_LAT = -4.312;
+  const HUB_LON = 15.31;
   let pickupDistance = 1.2;
   if (o.restaurantId) {
     const rest = await getRestaurant(o.restaurantId);
     if (rest) {
       pickupDistance = haversineKm(rider.latitude, rider.longitude, rest.latitude, rest.longitude);
+    }
+  } else {
+    pickupDistance = haversineKm(rider.latitude, rider.longitude, HUB_LAT, HUB_LON);
+  }
+  // Fetch first item for thumbnail/name
+  let firstItemName: string | undefined = undefined;
+  let firstItemImageUrl: string | undefined = undefined;
+  const iRes = await supabase
+    .from("order_items")
+    .select("name,image_url,menu_item_id")
+    .eq("order_id", orderId)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (!iRes.error && iRes.data) {
+    firstItemName = (iRes.data as any).name || undefined;
+    firstItemImageUrl = (iRes.data as any).image_url || undefined;
+    // Backfill from menu_items if missing
+    if (!firstItemImageUrl && (iRes.data as any).menu_item_id) {
+      const m = await supabase
+        .from("menu_items")
+        .select("image_url")
+        .eq("id", (iRes.data as any).menu_item_id)
+        .maybeSingle();
+      if (!m.error && m.data) firstItemImageUrl = (m.data as any).image_url || undefined;
+    }
+  }
+  // Pickup label/name
+  let pickupName = "Dépôt Smart Finds";
+  let pickupZone = "Gombe";
+  if (o.restaurantId) {
+    const rest = await getRestaurant(o.restaurantId);
+    if (rest) {
+      pickupName = rest.name;
+      pickupZone = rest.zone;
     }
   }
   const deliveryDistance = 2.1;
@@ -472,12 +621,22 @@ async function buildOffer(orderId: string, riderId: string) {
     etaMinutes: eta,
     earningsUsd: estimateEarningsUsd(o),
     expiresAt: Date.now() + 30_000,
+    // Enriched fields for rider offer card
+    deliveryAddress: o.address,
+    deliveryZone: o.zone,
+    firstItemName,
+    firstItemImageUrl,
+    pickupName,
+    pickupZone,
   };
 }
 
 async function buildOfferQueueForOrder(order: Order) {
   const supabase = getServiceClient();
   const rest = order.restaurantId ? await getRestaurant(order.restaurantId) : undefined;
+  // Smart Finds hub when no restaurant
+  const HUB_LAT = -4.312;
+  const HUB_LON = 15.31;
   const { data, error } = await supabase.from("riders").select("*").eq("status", "online");
   if (error) throw error;
   const eligible = (data || []).map(mapRider);
@@ -486,7 +645,7 @@ async function buildOfferQueueForOrder(order: Order) {
       const pickup =
         rest?.latitude && rest.longitude
           ? haversineKm(r.latitude, r.longitude, rest.latitude, rest.longitude)
-          : 1 + Math.random();
+          : haversineKm(r.latitude, r.longitude, HUB_LAT, HUB_LON);
       const score = 100 - pickup * 10 + r.reliabilityPercent * 0.1;
       return { riderId: r.id, pickup, score };
     })
@@ -499,11 +658,37 @@ async function buildOfferQueueForOrder(order: Order) {
         order_id: order.id,
         rider_ids: ranked,
         current_index: 0,
-        expire_at: null,
+        expire_at: new Date(Date.now() + 30_000).toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "order_id" },
     );
+}
+
+// Advance to next rider if current offer expired or invalid. Called on reads.
+async function maybeAdvanceOfferQueue(orderId: string) {
+  const supabase = getServiceClient();
+  const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
+  if (qres.error) return;
+  const q = qres.data;
+  if (!q) {
+    // Repair missing queue lazily
+    const ores = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+    if (!ores.error && ores.data) {
+      await buildOfferQueueForOrder(mapOrderRow(ores.data));
+    }
+    return;
+  }
+  const now = Date.now();
+  const isExpired = !q.expire_at || new Date(q.expire_at).getTime() <= now;
+  let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+  if (!isExpired && riderIds.length) return;
+  let idx = (q.current_index ?? 0) + 1;
+  if (riderIds.length) idx = idx % riderIds.length;
+  await supabase
+    .from("dispatch_queues")
+    .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
+    .eq("order_id", orderId);
 }
 
 async function attachItemsAndNotes(orders: Order[]): Promise<Order[]> {

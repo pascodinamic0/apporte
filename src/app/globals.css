@@ -3,9 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --brand: #047857; /* emerald-700 */
-  --brand-600: #059669;
-  --brand-800: #065f46;
+  --brand-start: #12b886;
+  --brand-end: #0b7f62;
+  --brand: #0b7f62; /* main */
+  --brand-600: #0d9b77;
+  --brand-800: #0a6b52;
   --radius: 12px;
   --shadow: 0 4px 16px rgba(0,0,0,0.06);
 }
@@ -42,12 +44,85 @@ a:hover {
 }
 
 .brand-gradient {
-  background-image: radial-gradient(1200px 600px at 10% 10%, rgba(4,120,87,0.15), transparent),
-    radial-gradient(800px 400px at 90% 20%, rgba(5,150,105,0.12), transparent),
+  background-image: radial-gradient(1200px 600px at 10% 10%, color-mix(in oklab, var(--brand-start) 20%, transparent), transparent),
+    radial-gradient(800px 400px at 90% 20%, color-mix(in oklab, var(--brand-end) 18%, transparent), transparent),
     linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .card-elevated {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+/* Micro animations */
+@keyframes apporte-slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ---- Mobile fit & PWA safe-area support ---- */
+:root {
+  /* Safe area variables with fallbacks */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* Global resets for consistent mobile behavior */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  overflow-x: hidden; /* avoid horizontal scroll on narrow devices */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prefer dynamic viewport units for PWAs */
+.min-h-dvh {
+  min-height: 100dvh;
+}
+
+/* iOS momentum/overscroll control */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Safe area helpers */
+.safe-top {
+  padding-top: max(var(--safe-top), 0px);
+}
+.safe-bottom {
+  padding-bottom: max(var(--safe-bottom), 0px);
+}
+.inset-safe {
+  padding-top: max(var(--safe-top), 0px);
+  padding-right: max(var(--safe-right), 0px);
+  padding-bottom: max(var(--safe-bottom), 0px);
+  padding-left: max(var(--safe-left), 0px);
+}
+
+/* Ensure tappable sizes and no auto-zoom on iOS */
+input,
+select,
+textarea,
+button {
+  font-size: 16px; /* prevent iOS zoom */
+}
+
+/* Sane media behavior */
+img,
+video {
+  max-width: 100%;
+  display: block;
 }

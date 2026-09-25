@@ -4,6 +4,8 @@ import type { MenuItem } from "@/src/lib/types";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+import { SafeImage } from "@/src/components/SafeImage";
+import { Stagger } from "@/src/components/Stagger";
 
 export function MerchantMenuClient({
   restaurantId,
@@ -41,6 +43,7 @@ export function MerchantMenuClient({
       <h1 className="text-xl font-semibold mb-3">Menu</h1>
       <div className="grid gap-3">
         {menu.length === 0 && <div className="text-gray-600">Chargement du menu…</div>}
+        <Stagger>
         {menu.map((m) => (
           <Card key={m.id}>
             <CardHeader className="flex items-center justify-between">
@@ -59,13 +62,15 @@ export function MerchantMenuClient({
                 />
               </div>
             </CardHeader>
-            <CardContent className="flex justify-end">
-              <Button variant="outline" onClick={() => toggleAvailability(m)}>
+            <CardContent className="flex items-center justify-between">
+              <SafeImage src={m.imageUrl} alt={m.name} width={160} height={100} className="h-20 w-40 rounded-md object-cover" />
+              <Button variant="outline" className="whitespace-nowrap" onClick={() => toggleAvailability(m)}>
                 {m.available ? "Marquer indisponible" : "Marquer disponible"}
               </Button>
             </CardContent>
           </Card>
         ))}
+        </Stagger>
       </div>
     </div>
   );

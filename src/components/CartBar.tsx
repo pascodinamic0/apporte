@@ -17,19 +17,23 @@ export function CartBar() {
     pathname.startsWith("/checkout");
   if (hide || items.length === 0) return null;
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-50 md:bottom-4">
+    <div
+      className="fixed left-0 right-0 z-50 animate-[apporte-slide-up_200ms_ease] motion-reduce:animate-none"
+      style={{ bottom: "max(16px, calc(64px + env(safe-area-inset-bottom)))" }}
+    >
       <div className="mx-auto max-w-5xl px-4">
         <Link
           href="/cart"
-          className="flex items-center justify-between rounded-full bg-emerald-700 text-white px-4 py-3 shadow-lg"
+          className="flex items-center justify-between rounded-full bg-emerald-700 text-white px-5 py-3 shadow-lg ring-1 ring-emerald-900/20"
+          style={{ color: "#fff" }}
         >
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            <span className="text-sm">
+            <ShoppingCart className="h-5 w-5 text-white" />
+            <span className="text-sm font-medium text-white">
               {items.length} article{items.length > 1 ? "s" : ""} — {formatPriceUSD(subtotal)}
             </span>
           </div>
-          <span className="font-semibold">Voir le panier</span>
+          <span className="font-semibold text-white">Voir le panier</span>
         </Link>
       </div>
     </div>

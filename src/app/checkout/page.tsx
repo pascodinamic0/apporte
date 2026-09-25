@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { useCartStore } from "@/src/store/cart";
 import { formatPriceUSD } from "@/src/lib/utils";
 import type { OrderItem, PaymentMethod } from "@/src/lib/types";
+import { SafeImage } from "@/src/components/SafeImage";
 
 // Simple client copy of smart finds for upsell (for demo; avoid server import)
 const SMART_FIND_IDS = [
@@ -36,11 +37,36 @@ export default function CheckoutPage() {
       string,
       { id: string; name: string; priceUsd: number; imageUrl?: string }
     > = {
-      sf_powerbank: { id: "sf_powerbank", name: "Power bank 20,000 mAh", priceUsd: 18 },
-      sf_compressor: { id: "sf_compressor", name: "Compresseur portable", priceUsd: 25 },
-      sf_lamp: { id: "sf_lamp", name: "Lampe rechargeable", priceUsd: 12 },
-      sf_fast_charger: { id: "sf_fast_charger", name: "Chargeur rapide 20W", priceUsd: 9 },
-      sf_phone_holder: { id: "sf_phone_holder", name: "Support téléphone", priceUsd: 7 },
+      sf_powerbank: {
+        id: "sf_powerbank",
+        name: "Power bank 20,000 mAh",
+        priceUsd: 18,
+        imageUrl: "/images/sf_powerbank.jpg",
+      },
+      sf_compressor: {
+        id: "sf_compressor",
+        name: "Compresseur portable",
+        priceUsd: 25,
+        imageUrl: "/images/sf_compressor.jpg",
+      },
+      sf_lamp: {
+        id: "sf_lamp",
+        name: "Lampe rechargeable",
+        priceUsd: 12,
+        imageUrl: "/images/sf_lamp.jpg",
+      },
+      sf_fast_charger: {
+        id: "sf_fast_charger",
+        name: "Chargeur rapide 20W",
+        priceUsd: 9,
+        imageUrl: "/images/sf_fast_charger.jpg",
+      },
+      sf_phone_holder: {
+        id: "sf_phone_holder",
+        name: "Support téléphone",
+        priceUsd: 7,
+        imageUrl: "/images/sf_phone_holder.jpg",
+      },
     };
     return SMART_FIND_IDS.map((id) => map[id]).slice(0, 3);
   }, []);
@@ -116,6 +142,14 @@ export default function CheckoutPage() {
         <Card>
           <CardHeader>Résumé</CardHeader>
           <CardContent className="grid gap-2 text-sm">
+            <div className="grid gap-2">
+              {items.map((i) => (
+                <div key={i.id} className="flex items-center justify-between">
+                  <span className="truncate">{i.name} × {i.quantity}</span>
+                  <span>{formatPriceUSD(i.unitPriceUsd * i.quantity)}</span>
+                </div>
+              ))}
+            </div>
             <div className="flex items-center justify-between">
               <span>Sous-total</span>
               <span>{formatPriceUSD(subtotal)}</span>
@@ -128,7 +162,7 @@ export default function CheckoutPage() {
               <span>Total</span>
               <span>{formatPriceUSD(total)}</span>
             </div>
-            <Button className="mt-3" onClick={placeOrder} disabled={placing || items.length === 0}>
+            <Button className="mt-3 whitespace-nowrap" onClick={placeOrder} disabled={placing || items.length === 0}>
               {placing ? "Traitement..." : "Confirmer la commande"}
             </Button>
           </CardContent>
@@ -142,7 +176,14 @@ export default function CheckoutPage() {
               <CardHeader>
                 <div className="font-medium">{p.name}</div>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
+              <CardContent className="flex items-center justify-between gap-3">
+                <SafeImage
+                  src={p.imageUrl}
+                  alt={p.name}
+                  width={160}
+                  height={100}
+                  className="h-16 w-28 rounded-md object-cover"
+                />
                 <div className="text-emerald-800 font-medium">{formatPriceUSD(p.priceUsd)}</div>
                 <Button variant="outline" onClick={() => addUpsell(p)}>
                   Ajouter

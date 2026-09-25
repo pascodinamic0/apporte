@@ -6,9 +6,13 @@ export async function Header() {
   const role = user?.role ?? "customer";
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/70 backdrop-blur">
-      <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="font-bold text-emerald-800 text-lg">
-          Apporte
+      <div
+        className="mx-auto max-w-5xl px-4 flex items-center justify-between"
+        style={{ paddingTop: "max(var(--safe-top),12px)", paddingBottom: "12px", minHeight: "56px" }}
+      >
+        <Link href="/" className="flex items-center gap-2 text-emerald-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo/apporte-lockup.svg" alt="Apporte" className="h-8" />
         </Link>
         {role === "customer" ? (
           <nav className="hidden gap-6 md:flex text-sm text-gray-700">

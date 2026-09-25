@@ -24,3 +24,32 @@ export function randomId(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function statusLabelFr(status: string): string {
+  switch (status) {
+    case "placed":
+      return "Commande passée";
+    case "restaurant_accepted":
+      return "Restaurant a accepté";
+    case "preparing":
+      return "En préparation";
+    case "rider_searching":
+      return "Recherche d’un livreur";
+    case "rider_assigned":
+      return "Livreur assigné";
+    case "going_to_restaurant":
+      return "En route vers le pickup";
+    case "arrived":
+      return "Livreur arrivé";
+    case "picked_up":
+      return "Commande récupérée";
+    case "delivering":
+      return "En livraison";
+    case "delivered":
+      return "Livré";
+    case "cancelled":
+      return "Annulée";
+    default:
+      return status;
+  }
+}
+

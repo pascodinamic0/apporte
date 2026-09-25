@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { User, Store, Bike, ShieldCheck } from "lucide-react";
@@ -32,7 +33,14 @@ export default function DemoPage() {
   }
   return (
     <div className="py-2">
-      <h1 className="text-xl font-semibold mb-3">Comptes Démo</h1>
+      <div className="flex items-center gap-2 mb-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo/apporte-lockup.svg" alt="Apporte" className="h-7" />
+        <h1 className="text-xl font-semibold">Comptes Démo</h1>
+      </div>
+      <div className="text-sm text-gray-700 mb-3">
+        Bascule rapidement entre les rôles pour tester l’application.
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {users.map((u) => (
           <Card key={u.id}>
@@ -55,18 +63,21 @@ export default function DemoPage() {
               <Button onClick={() => login(u.id)} disabled={loggingIn === u.id}>
                 {loggingIn === u.id ? "Connexion..." : "Se connecter"}
               </Button>
-              <div className="text-sm text-gray-600">
-                {u.role === "customer" && "Aller à Accueil"}
-                {u.role === "merchant" && "Aller à /merchant"}
-                {u.role === "rider" && "Aller à /rider"}
-                {u.role === "admin" && "Aller à /admin"}
-              </div>
+            <div className="text-sm text-gray-600">
+                {u.role === "customer" && "Aller à l’accueil"}
+                {u.role === "merchant" && "Ouvrir l’espace commerçant"}
+                {u.role === "rider" && "Ouvrir l’espace livreur"}
+                {u.role === "admin" && "Ouvrir l’espace admin"}
+            </div>
             </CardContent>
           </Card>
         ))}
       </div>
       <div className="mt-6 text-sm text-gray-700">
         Mot de passe (démo): <code>Passw0rd!</code> — Simulation, pas de vrai paiement.
+        <div className="mt-2">
+          <Link href="/credits" className="text-emerald-700 underline">À propos / Crédits photos</Link>
+        </div>
       </div>
     </div>
   );
