@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/src/lib/auth";
 import { AccessRequired } from "@/src/components/AccessRequired";
-import { AdminNav } from "./AdminNav";
 
 export const metadata: Metadata = { title: { template: "%s · Admin · Apporte", default: "Admin · Apporte" } };
 
@@ -10,7 +9,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) return <AccessRequired role="admin" />;
   return (
     <div className="py-2">
-      <AdminNav />
       {children}
     </div>
   );

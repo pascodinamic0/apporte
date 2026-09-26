@@ -42,23 +42,23 @@ export default function DemoPage() {
       <div className="text-sm text-gray-700 mb-3">
         Bascule rapidement entre les rôles pour tester l’application.
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2">
         {users.map((u) => (
           <Card key={u.id}>
-            <CardHeader className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
+            <CardHeader className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
                   {u.role === "customer" && <User className="h-5 w-5" />}
                   {u.role === "merchant" && <Store className="h-5 w-5" />}
                   {u.role === "rider" && <Bike className="h-5 w-5" />}
                   {u.role === "admin" && <ShieldCheck className="h-5 w-5" />}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="font-medium">{u.name}</div>
-                  <div className="text-sm text-gray-600">{u.email}</div>
+                  <div className="truncate text-sm text-gray-600">{u.email}</div>
                 </div>
               </div>
-              <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{roleLabelFr(u.role)}</div>
+              <div className="shrink-0 text-xs rounded-full bg-gray-100 px-2 py-1">{roleLabelFr(u.role)}</div>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center justify-between gap-2">
               <Button onClick={() => login(u.id)} disabled={loggingIn === u.id}>

@@ -746,36 +746,36 @@ function mapOrderWithRelations(row: any): Order {
   return base;
 }
 
-/** Backfill missing item images from current menu data (batch). */
+/**
+ * Item images come from the current catalogue (menu items / Trouvailles), so old
+ * orders never point at removed files or dead third-party URLs. A stored image is
+ * only kept when the catalogue has none and it is a local file.
+ */
 async function hydrateOrderImages(orders: Order[]): Promise<Order[]> {
   if (orders.length === 0) return [];
-  const menuIds = Array.from(
-    new Set(
-      orders.flatMap((o) =>
-        o.items.filter((i) => i.menuItemId && !i.imageUrl).map((i) => i.menuItemId as string),
-      ),
-    ),
-  );
-  if (menuIds.length === 0) return orders;
+  const all = orders.flatMap((o) => o.items);
+  const menuIds = Array.from(new Set(all.map((i) => i.menuItemId).filter(Boolean) as string[]));
+  const prodIds = Array.from(new Set(all.map((i) => i.productId).filter(Boolean) as string[]));
+  if (menuIds.length === 0 && prodIds.length === 0) return orders;
   const supabase = getServiceClient();
-  const menuById = new Map<string, string>();
+  const imageById = new Map<string, string>();
   // Chunk to stay under PostgREST URL limits
   const chunkSize = 100;
-  for (let i = 0; i < menuIds.length; i += chunkSize) {
-    const chunk = menuIds.slice(i, i + chunkSize);
-    const { data, error } = await supabase.from("menu_items").select("id,image_url").in("id", chunk);
-    if (error) throw error;
-    for (const m of data || []) {
-      if ((m as any).id && (m as any).image_url) {
-        menuById.set((m as any).id, (m as any).image_url);
+  for (const [table, ids] of [["menu_items", menuIds], ["smart_find_products", prodIds]] as const) {
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const { data, error } = await supabase.from(table).select("id,image_url").in("id", ids.slice(i, i + chunkSize));
+      if (error) throw error;
+      for (const m of (data || []) as { id: string; image_url: string | null }[]) {
+        if (m.id && m.image_url) imageById.set(m.id, m.image_url);
       }
     }
   }
+  const localOnly = (u?: string) => (u && u.startsWith("/images/") && !u.startsWith("/images/menu/") ? u : undefined);
   return orders.map((o) => ({
     ...o,
     items: o.items.map((it) => ({
       ...it,
-      imageUrl: it.imageUrl || (it.menuItemId ? menuById.get(it.menuItemId) : undefined),
+      imageUrl: imageById.get(it.menuItemId || it.productId || "") || localOnly(it.imageUrl),
     })),
   }));
 }
