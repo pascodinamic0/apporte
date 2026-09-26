@@ -8,7 +8,7 @@ import { Button } from "@/src/components/ui/button";
 import { SafeImage } from "@/src/components/SafeImage";
 import { useCartStore } from "@/src/store/cart";
 import { cn, formatPriceUSD } from "@/src/lib/utils";
-import { normalizeDrcPhone } from "@/src/lib/phone";
+import { formatDrcPhone, normalizeDrcPhone } from "@/src/lib/phone";
 import type { UserRole } from "@/src/lib/types";
 
 type Upsell = { id: string; name: string; priceUsd: number; imageUrl?: string };
@@ -58,15 +58,25 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
   const addressOk = address.trim().length >= 5;
   const canOrder = role === "customer";
 
-  async function placeOrder(e?: React.FormEvent) {
+  async function placeOrder(e?: React.FormEvent<HTMLFormElement>) {
     e?.preventDefault();
+    // Read what is actually in the fields: on slow networks people can type
+    // before React hydrates, and the DOM value is then the source of truth.
+    const fd = e?.currentTarget ? new FormData(e.currentTarget) : null;
+    const addressV = String(fd?.get("address") ?? address).trim();
+    const notesV = String(fd?.get("notes") ?? addressNotes).trim();
+    const phoneV = String(fd?.get("phone") ?? phone).trim();
+    if (addressV !== address) setAddress(addressV);
+    if (notesV !== addressNotes.trim()) setAddressNotes(notesV);
+    if (phoneV !== phone) setPhone(phoneV);
+    const normalizedPhone = normalizeDrcPhone(phoneV);
     setTouched({ phone: true, address: true });
-    if (!addressOk) {
+    if (addressV.length < 5) {
       toast.error(ORDER_ERRORS.invalid_address);
       document.getElementById("address")?.focus();
       return;
     }
-    if (!phoneOk) {
+    if (!normalizedPhone) {
       toast.error(ORDER_ERRORS.invalid_phone);
       document.getElementById("phone")?.focus();
       return;
@@ -79,9 +89,9 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
         body: JSON.stringify({
           restaurantId,
           items: items.map((i) => ({ kind: i.kind, menuItemId: i.menuItemId, productId: i.productId, quantity: i.quantity })),
-          address: address.trim(),
-          addressNotes: addressNotes.trim() || undefined,
-          customerPhone: phone,
+          address: addressV,
+          addressNotes: notesV || undefined,
+          customerPhone: normalizedPhone,
           zone: "Gombe",
           paymentMethod: "Cash on delivery",
         }),
@@ -92,7 +102,7 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
         return;
       }
       try {
-        localStorage.setItem(PHONE_KEY, phone);
+        localStorage.setItem(PHONE_KEY, formatDrcPhone(normalizedPhone));
       } catch {}
       clear();
       toast.success("Commande envoyée au restaurant !");
