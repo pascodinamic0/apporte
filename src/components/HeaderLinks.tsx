@@ -15,7 +15,7 @@ export function HeaderLinks({ role, signedIn }: { role: UserRole; signedIn: bool
     if (!signedIn) items = items.map((i) => (i.href === "/account" ? { ...i, href: "/demo", label: "Se connecter" } : i));
   }
   return (
-    <nav aria-label="Navigation principale" className="flex items-center gap-1 text-sm">
+    <nav aria-label="Menu de l’en-tête" className="flex items-center gap-1 text-sm">
       {items.map((it) => {
         const active = isActive(pathname, it);
         return (
