@@ -147,8 +147,8 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
   return (
     <form className="py-2" onSubmit={placeOrder} noValidate>
       <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Finaliser la commande</h1>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="grid gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
           <section className="card-elevated border border-gray-200 bg-white p-4 sm:p-5">
             <h2 className="flex items-center gap-2 font-semibold"><MapPin className="h-5 w-5 text-emerald-700" aria-hidden /> Livraison</h2>
             <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
@@ -245,7 +245,7 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
           {upsell.length > 0 && (
             <section>
               <h2 className="mb-2 font-semibold">Ajouter à ma livraison</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-3">
                 {upsell.map((p) => (
                   <div key={p.id} className="card-elevated flex items-center gap-3 border border-gray-200 bg-white p-3 sm:flex-col sm:items-stretch">
                     <SafeImage src={p.imageUrl} alt={p.name} width={240} height={160} className="h-16 w-20 shrink-0 rounded-lg object-cover sm:h-24 sm:w-full" />
