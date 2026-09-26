@@ -14,6 +14,16 @@ export function formatPriceUSD(amount: number): string {
   }).format(amount);
 }
 
+/** French article count label, e.g. "2 articles" or "Détails indisponibles". */
+export function articleCountLabel(
+  items: { quantity?: number }[] | undefined | null,
+): string {
+  if (!items || items.length === 0) return "Détails indisponibles";
+  const n = items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+  if (n <= 0) return "Détails indisponibles";
+  return n === 1 ? "1 article" : `${n} articles`;
+}
+
 export function generatePin(length = 4): string {
   const min = Math.pow(10, length - 1);
   const max = Math.pow(10, length) - 1;

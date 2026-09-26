@@ -97,86 +97,69 @@ export async function updateMenuItemPrice(menuItemId: string, priceUsd: number) 
 }
 
 // Orders
+const ORDER_SELECT =
+  "*, order_items(*), support_notes(*)";
+
 export async function listOrdersAll(): Promise<Order[]> {
   if (!supabaseConfigured()) return memory.listOrdersAll();
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(ORDER_SELECT)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return await attachItemsAndNotes((data || []).map(mapOrderRow));
+  return await hydrateOrderImages((data || []).map(mapOrderWithRelations));
 }
 export async function listOrdersForRestaurant(restaurantId: string): Promise<Order[]> {
   if (!supabaseConfigured()) return memory.listOrdersForRestaurant(restaurantId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(ORDER_SELECT)
     .eq("restaurant_id", restaurantId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return await attachItemsAndNotes((data || []).map(mapOrderRow));
+  return await hydrateOrderImages((data || []).map(mapOrderWithRelations));
 }
 export async function listOrdersForRider(riderId: string): Promise<Order[]> {
   if (!supabaseConfigured()) return memory.listOrdersForRider(riderId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(ORDER_SELECT)
     .eq("rider_id", riderId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return await attachItemsAndNotes((data || []).map(mapOrderRow));
+  return await hydrateOrderImages((data || []).map(mapOrderWithRelations));
 }
 export async function listOrdersForCustomer(customerId: string): Promise<Order[]> {
   if (!supabaseConfigured()) return memory.listOrdersForCustomer(customerId);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(ORDER_SELECT)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return await attachItemsAndNotes((data || []).map(mapOrderRow));
+  return await hydrateOrderImages((data || []).map(mapOrderWithRelations));
 }
 export async function getOrder(id: string): Promise<Order | undefined> {
   if (!supabaseConfigured()) return memory.getOrder(id);
   const supabase = getServiceClient();
-  const { data, error } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw error;
   if (!data) return undefined;
-  const base = mapOrderRow(data);
+  const base = mapOrderWithRelations(data);
   // Lazily advance expired dispatch offers
   if (base.status === "rider_searching") {
     await maybeAdvanceOfferQueue(base.id);
   }
-  const [itemsRes, notesRes, menuLookup] = await Promise.all([
-    supabase.from("order_items").select("*").eq("order_id", id).order("created_at"),
-    supabase
-      .from("support_notes")
-      .select("*")
-      .eq("order_id", id)
-      .order("created_at", { ascending: true }),
-    supabase.from("menu_items").select("id,image_url"),
-  ]);
-  if (itemsRes.error) throw itemsRes.error;
-  if (notesRes.error) throw notesRes.error;
-  base.items = (itemsRes.data || []).map(mapOrderItem);
-  // Backfill missing images from current menu data
-  const menuById = new Map<string, string>();
-  if (!menuLookup.error) {
-    for (const m of menuLookup.data || []) {
-      if ((m as any).id) menuById.set((m as any).id, (m as any).image_url || null);
-    }
-  }
-  base.items = base.items.map((it) => ({
-    ...it,
-    imageUrl: it.imageUrl || (it.menuItemId ? menuById.get(it.menuItemId) || undefined : it.imageUrl),
-  }));
-  const notes = (notesRes.data || []).map(mapSupportNote);
-  base.supportNotes = notes.length ? notes : undefined;
-  return base;
+  const [hydrated] = await hydrateOrderImages([base]);
+  return hydrated;
 }
 
 export async function createOrder(params: {
@@ -266,12 +249,19 @@ export async function createOrder(params: {
   };
   const ins = await supabase.from("orders").insert(orderRow);
   if (ins.error) throw ins.error;
-  // Insert items with server-computed prices
-  const itemRows = serverItems.map((row) => ({ ...row, order_id: id }));
-  const insItems = await supabase.from("order_items").insert(itemRows);
-  if (insItems.error) {
+  // Insert items with server-computed prices (must not leave an orphan order)
+  const itemRows = serverItems.map((row) => {
+    const { order_id: _pending, ...rest } = row;
+    return { ...rest, order_id: id };
+  });
+  if (itemRows.length === 0) {
     await supabase.from("orders").delete().eq("id", id);
-    throw insItems.error;
+    throw new Error("invalid_item");
+  }
+  const insItems = await supabase.from("order_items").insert(itemRows).select("id");
+  if (insItems.error || (insItems.data || []).length !== itemRows.length) {
+    await supabase.from("orders").delete().eq("id", id);
+    throw insItems.error || new Error("order_items_insert_failed");
   }
   // If Smart Finds (no restaurant), immediately build the rider offer queue
   if (!params.restaurantId) {
@@ -280,9 +270,13 @@ export async function createOrder(params: {
       await buildOfferQueueForOrder(fullNow);
     }
   }
-  // Return assembled
+  // Return assembled — refuse empty-item orders
   const full = await getOrder(id);
-  if (!full) throw new Error("Order creation failed");
+  if (!full || full.items.length === 0) {
+    await supabase.from("order_items").delete().eq("order_id", id);
+    await supabase.from("orders").delete().eq("id", id);
+    throw new Error("Order creation failed");
+  }
   return full;
 }
 
@@ -727,33 +721,59 @@ async function maybeAdvanceOfferQueue(orderId: string) {
     .eq("order_id", orderId);
 }
 
-async function attachItemsAndNotes(orders: Order[]): Promise<Order[]> {
-  if (orders.length === 0) return [];
-  const supabase = getServiceClient();
-  const ids = orders.map((o) => o.id);
-  const [itemsRes, notesRes] = await Promise.all([
-    supabase.from("order_items").select("*").in("order_id", ids).order("created_at"),
-    supabase.from("support_notes").select("*").in("order_id", ids).order("created_at"),
-  ]);
-  if (itemsRes.error) throw itemsRes.error;
-  if (notesRes.error) throw notesRes.error;
-  const itemsByOrder = new Map<string, any[]>();
-  for (const it of itemsRes.data || []) {
-    const arr = itemsByOrder.get(it.order_id) || [];
-    arr.push(it);
-    itemsByOrder.set(it.order_id, arr);
-  }
-  const notesByOrder = new Map<string, any[]>();
-  for (const n of notesRes.data || []) {
-    const arr = notesByOrder.get(n.order_id) || [];
-    arr.push(n);
-    notesByOrder.set(n.order_id, arr);
-  }
-  return orders.map((o) => {
-    const its = (itemsByOrder.get(o.id) || []).map(mapOrderItem);
-    const nts = (notesByOrder.get(o.id) || []).map(mapSupportNote);
-    return { ...o, items: its, supportNotes: nts.length ? nts : undefined };
+function mapOrderWithRelations(row: any): Order {
+  const base = mapOrderRow(row);
+  const rawItems = Array.isArray(row.order_items) ? row.order_items : [];
+  // Stable order by created_at when embedded
+  rawItems.sort((a: any, b: any) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return ta - tb;
   });
+  base.items = rawItems.map(mapOrderItem);
+  const rawNotes = Array.isArray(row.support_notes) ? row.support_notes : [];
+  rawNotes.sort((a: any, b: any) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return ta - tb;
+  });
+  const notes = rawNotes.map(mapSupportNote);
+  base.supportNotes = notes.length ? notes : undefined;
+  return base;
+}
+
+/** Backfill missing item images from current menu data (batch). */
+async function hydrateOrderImages(orders: Order[]): Promise<Order[]> {
+  if (orders.length === 0) return [];
+  const menuIds = Array.from(
+    new Set(
+      orders.flatMap((o) =>
+        o.items.filter((i) => i.menuItemId && !i.imageUrl).map((i) => i.menuItemId as string),
+      ),
+    ),
+  );
+  if (menuIds.length === 0) return orders;
+  const supabase = getServiceClient();
+  const menuById = new Map<string, string>();
+  // Chunk to stay under PostgREST URL limits
+  const chunkSize = 100;
+  for (let i = 0; i < menuIds.length; i += chunkSize) {
+    const chunk = menuIds.slice(i, i + chunkSize);
+    const { data, error } = await supabase.from("menu_items").select("id,image_url").in("id", chunk);
+    if (error) throw error;
+    for (const m of data || []) {
+      if ((m as any).id && (m as any).image_url) {
+        menuById.set((m as any).id, (m as any).image_url);
+      }
+    }
+  }
+  return orders.map((o) => ({
+    ...o,
+    items: o.items.map((it) => ({
+      ...it,
+      imageUrl: it.imageUrl || (it.menuItemId ? menuById.get(it.menuItemId) : undefined),
+    })),
+  }));
 }
 
 // Row -> type mappers
