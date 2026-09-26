@@ -110,6 +110,8 @@ export interface Order {
   deliveryFeeUsd: number;
   totalUsd: number;
   address: string;
+  addressNotes?: string; // landmark / instructions for the rider
+  customerPhone?: string; // E.164, +243XXXXXXXXX
   zone: string; // e.g., Gombe
   paymentMethod: PaymentMethod;
   status: OrderStatus;

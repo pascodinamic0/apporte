@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getOrder } from "@/src/lib/data/db";
 import { OrderClient } from "./OrderClient";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Suivi de commande", robots: { index: false } };
 
 const steps = [
   "placed",
@@ -33,5 +35,4 @@ export default async function OrderPage({
   );
 }
 
-function labelForStatus(s: string) { return s; }
 

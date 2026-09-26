@@ -1,21 +1,15 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRole } from "@/src/lib/auth";
+import { getRiderState } from "@/src/lib/data/db";
 import { RiderClient } from "./RiderClient";
-import { getCurrentUser } from "@/src/lib/auth";
+import { AccessRequired } from "@/src/components/AccessRequired";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Espace livreur" };
 
 export default async function RiderHome() {
   const user = await requireRole(["rider"]);
-  if (!user) {
-    return (
-      <div className="py-6">
-        <div className="text-lg">Accès livreur requis.</div>
-        <Link href="/demo" className="text-emerald-700 underline">
-          Ouvrir la page Démo
-        </Link>
-      </div>
-    );
-  }
-  const riderId = (await getCurrentUser())?.riderId || "rider_1";
-  return <RiderClient riderId={riderId} />;
+  if (!user || !user.riderId) return <AccessRequired role="livreur" />;
+  const initial = await getRiderState(user.riderId);
+  return <RiderClient initial={initial} />;
 }
-

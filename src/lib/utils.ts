@@ -47,7 +47,7 @@ export function statusLabelFr(status: string): string {
     case "rider_assigned":
       return "Livreur assigné";
     case "going_to_restaurant":
-      return "En route vers le pickup";
+      return "En route vers le restaurant";
     case "arrived":
       return "Livreur arrivé";
     case "picked_up":
@@ -63,3 +63,55 @@ export function statusLabelFr(status: string): string {
   }
 }
 
+
+export function paymentLabelFr(method: string | undefined | null): string {
+  switch (method) {
+    case "Cash on delivery":
+      return "Cash à la livraison";
+    case "Mobile Money":
+      return "Mobile Money";
+    case "Card":
+      return "Carte bancaire";
+    default:
+      return method || "—";
+  }
+}
+
+export function riderStatusLabelFr(status: string): string {
+  switch (status) {
+    case "online":
+      return "En ligne";
+    case "offline":
+      return "Hors ligne";
+    case "busy":
+      return "Occupé";
+    default:
+      return status;
+  }
+}
+
+export function roleLabelFr(role: string | undefined | null): string {
+  switch (role) {
+    case "customer":
+      return "Client";
+    case "merchant":
+      return "Commerçant";
+    case "rider":
+      return "Livreur";
+    case "admin":
+      return "Administrateur";
+    default:
+      return "Invité";
+  }
+}
+
+/** Date in Kinshasa time, French format. */
+export function formatDateFr(ms: number): string {
+  return new Date(ms).toLocaleString("fr-FR", {
+    timeZone: "Africa/Kinshasa",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

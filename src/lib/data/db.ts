@@ -167,6 +167,8 @@ export async function createOrder(params: {
   restaurantId?: string;
   items: OrderItem[];
   address: string;
+  addressNotes?: string;
+  customerPhone?: string;
   zone?: string;
   paymentMethod: PaymentMethod;
 }): Promise<Order> {
@@ -237,6 +239,8 @@ export async function createOrder(params: {
     delivery_fee_usd: deliveryFee,
     total_usd: round2(subtotal + deliveryFee),
     address: params.address,
+    address_notes: params.addressNotes ?? null,
+    customer_phone: params.customerPhone ?? null,
     zone: params.zone ?? PILOT_ZONE,
     payment_method: params.paymentMethod,
     status: (params.restaurantId ? "placed" : "rider_searching") as OrderStatus,
@@ -632,7 +636,7 @@ async function buildOffer(orderId: string, riderId: string) {
     }
   }
   // Pickup label/name
-  let pickupName = "Dépôt Smart Finds";
+  let pickupName = "Dépôt Trouvailles Apporte";
   let pickupZone = "Gombe";
   if (o.restaurantId) {
     const rest = await getRestaurant(o.restaurantId);
@@ -838,6 +842,8 @@ function mapOrderRow(o: any): Order {
     deliveryFeeUsd: Number(o.delivery_fee_usd),
     totalUsd: Number(o.total_usd),
     address: o.address,
+    addressNotes: o.address_notes ?? undefined,
+    customerPhone: o.customer_phone ?? undefined,
     zone: o.zone,
     paymentMethod: o.payment_method,
     status: o.status,
@@ -888,3 +894,104 @@ function mapUserRow(u: any) {
   };
 }
 
+
+// ---- Rider state (restored from the database on every load) ----
+export type RiderActiveJob = {
+  id: string;
+  status: OrderStatus;
+  address: string;
+  addressNotes?: string;
+  customerPhone?: string;
+  zone: string;
+  pickupName: string;
+  pickupZone: string;
+  items: { name: string; quantity: number; imageUrl?: string }[];
+  totalUsd: number;
+  paymentMethod: PaymentMethod;
+  earningsUsd: number;
+};
+
+export type RiderState = {
+  riderId: string;
+  name: string;
+  status: RiderStatus;
+  earningsTodayUsd: number;
+  activeOrder: RiderActiveJob | null;
+};
+
+const RIDER_ACTIVE: OrderStatus[] = [
+  "rider_assigned",
+  "going_to_restaurant",
+  "arrived",
+  "picked_up",
+  "delivering",
+];
+
+export async function getRiderState(riderId: string): Promise<RiderState> {
+  let rider: Rider | undefined;
+  if (!supabaseConfigured()) {
+    rider = memory.listRiders().find((r) => r.id === riderId);
+  } else {
+    const supabase = getServiceClient();
+    const r = await supabase.from("riders").select("*").eq("id", riderId).maybeSingle();
+    if (r.error) throw r.error;
+    rider = r.data ? mapRider(r.data) : undefined;
+  }
+  const orders = await listOrdersForRider(riderId);
+  const active = orders
+    .filter((o) => RIDER_ACTIVE.includes(o.status))
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  let activeOrder: RiderActiveJob | null = null;
+  if (active) {
+    const rest = active.restaurantId ? await getRestaurant(active.restaurantId) : undefined;
+    activeOrder = {
+      id: active.id,
+      status: active.status,
+      address: active.address,
+      addressNotes: active.addressNotes,
+      customerPhone: active.customerPhone,
+      zone: active.zone,
+      pickupName: rest?.name ?? "Dépôt Trouvailles",
+      pickupZone: rest?.zone ?? "Gombe",
+      items: active.items.map((i) => ({ name: i.name, quantity: i.quantity, imageUrl: i.imageUrl })),
+      totalUsd: active.totalUsd,
+      paymentMethod: active.paymentMethod,
+      earningsUsd: round2(active.deliveryFeeUsd * 0.7),
+    };
+  }
+  let status: RiderStatus = rider?.status ?? "offline";
+  if (activeOrder) status = "busy";
+  else if (status === "busy") {
+    // Stale "busy" with no delivery in progress: repair so offers can arrive again
+    await setRiderStatus(riderId, "online");
+    status = "online";
+  }
+  return {
+    riderId,
+    name: rider?.name ?? "Livreur",
+    status,
+    earningsTodayUsd: rider?.earningsTodayUsd ?? 0,
+    activeOrder,
+  };
+}
+
+/** Dish count per restaurant (admin overview). */
+export async function countMenuItemsByRestaurant(): Promise<Record<string, { total: number; available: number }>> {
+  const out: Record<string, { total: number; available: number }> = {};
+  let rows: { restaurantId: string; available: boolean }[] = [];
+  if (!supabaseConfigured()) {
+    const rests = memory.getRestaurants();
+    rows = rests.flatMap((r) => memory.getMenuForRestaurant(r.id).map((m) => ({ restaurantId: m.restaurantId, available: m.available })));
+  } else {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase.from("menu_items").select("restaurant_id,available");
+    if (error) throw error;
+    rows = (data || []).map((m: any) => ({ restaurantId: m.restaurant_id, available: !!m.available }));
+  }
+  for (const r of rows) {
+    const c = (out[r.restaurantId] ||= { total: 0, available: 0 });
+    c.total++;
+    if (r.available) c.available++;
+  }
+  return out;
+}

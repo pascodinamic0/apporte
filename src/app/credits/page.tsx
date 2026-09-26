@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import fs from "node:fs/promises";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Crédits photos" };
 
 function parseCredits(md: string) {
   const rows = md.split("\n").filter((l) => l.trim().startsWith("| `"));

@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getRestaurants } from "@/src/lib/data/db";
 import { Restaurant } from "@/src/lib/types";
 import { RestaurantGrid } from "./parts";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Restaurants", description: "Tous les restaurants livrés par Apporte à la Gombe, Kinshasa." };
 
 export default async function FoodPage() {
   const restaurants = await getRestaurants();

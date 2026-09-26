@@ -9,6 +9,8 @@
     "lint": "eslint",
     "gen:icons": "node scripts/gen-icons.mjs",
     "test:e2e": "playwright test",
+    "test:unit": "playwright test --project=unit",
+    "test:api": "playwright test --project=api",
     "test:e2e:install": "playwright install --with-deps"
   },
   "dependencies": {

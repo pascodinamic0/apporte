@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import toast from "react-hot-toast";
+import { Star } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 
 export function RateOrder({
@@ -23,13 +25,17 @@ export function RateOrder({
       });
       if (res.ok) {
         setSaved(true);
+        toast.success("Merci pour ton avis !");
       } else {
         // Keep form visible if server refused (e.g., not delivered, already rated, invalid)
-        // Optionally surface a toast; simple alert for now in this scoped fix
-        try {
-          const data = await res.json().catch(() => ({}));
-          alert("Impossible d’enregistrer l’avis." + (data?.reason ? ` (${data.reason})` : ""));
-        } catch {}
+        const data = await res.json().catch(() => ({}));
+        const reasons: Record<string, string> = {
+          already_rated: "Tu as déjà noté cette commande.",
+          not_delivered: "Tu pourras noter la commande après la livraison.",
+          invalid_rating: "Choisis une note entre 1 et 5 étoiles.",
+        };
+        toast.error(reasons[data?.reason] || "Impossible d’enregistrer l’avis. Réessaie.");
+        if (data?.reason === "already_rated") setSaved(true);
       }
     } finally {
       setSaving(false);
@@ -41,16 +47,18 @@ export function RateOrder({
   return (
     <div className="mt-3">
       <div className="text-lg font-semibold">Évaluer la commande</div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-1" role="radiogroup" aria-label="Note sur 5">
         {[1, 2, 3, 4, 5].map((s) => (
           <button
             key={s}
+            type="button"
+            role="radio"
+            aria-checked={s === stars}
+            aria-label={`${s} étoile${s > 1 ? "s" : ""}`}
             onClick={() => setStars(s)}
-            className={`h-8 w-8 rounded-full ${
-              s <= stars ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-600"
-            }`}
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-amber-50"
           >
-            {s}
+            <Star className={`h-7 w-7 ${s <= stars ? "fill-amber-400 text-amber-400" : "text-gray-300"}`} aria-hidden />
           </button>
         ))}
       </div>
