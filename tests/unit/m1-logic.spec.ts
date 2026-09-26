@@ -109,3 +109,15 @@ test.describe("parseMenuPrice", () => {
     }
   });
 });
+
+import { parseWhatsappNumber } from "../../src/lib/contact";
+test.describe("parseWhatsappNumber (NEXT_PUBLIC_SUPPORT_WHATSAPP)", () => {
+  test("accepts valid numbers, hides the button otherwise", () => {
+    expect(parseWhatsappNumber("+243 81 234 5678")).toBe("243812345678");
+    expect(parseWhatsappNumber("00243812345678")).toBe("243812345678");
+    expect(parseWhatsappNumber("+33 6 12 34 56 78")).toBe("33612345678");
+    for (const v of ["", undefined, null, "+243 81 234 56789", "243000000000", "abc"]) {
+      expect(parseWhatsappNumber(v as string), String(v)).toBeNull();
+    }
+  });
+});

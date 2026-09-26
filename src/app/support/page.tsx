@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Mail } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import { getCurrentUser } from "@/src/lib/auth";
 import { listOrdersForCustomer } from "@/src/lib/data/db";
-import { SUPPORT_EMAIL } from "@/src/lib/contact";
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP, whatsappLink } from "@/src/lib/contact";
 import { ContactForm } from "./ContactForm";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +46,27 @@ export default async function SupportPage() {
       <h1 className="text-2xl font-extrabold tracking-tight">Aide et contact</h1>
       <p className="mt-1 text-sm text-gray-600">Une question sur une commande ? Les réponses aux questions fréquentes sont ici.</p>
 
+      {SUPPORT_WHATSAPP && (
+        <section className="mt-5" aria-labelledby="wa">
+          <div className="card-elevated flex flex-col gap-3 border border-emerald-200 bg-emerald-50/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <h2 id="wa" className="font-semibold">Support WhatsApp 24h/24, 7j/7</h2>
+              <p className="mt-0.5 text-sm text-gray-700">Le plus rapide : écris-nous sur WhatsApp avec ton numéro de commande.</p>
+            </div>
+            <a
+              href={whatsappLink(SUPPORT_WHATSAPP, "Bonjour Apporte, j’ai besoin d’aide pour ma commande.")}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="whatsapp-support"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 font-semibold text-white hover:bg-emerald-800"
+              style={{ color: "white" }}
+            >
+              <MessageCircle className="h-5 w-5" aria-hidden /> Écrire sur WhatsApp
+            </a>
+          </div>
+        </section>
+      )}
+
       <section className="mt-5" aria-labelledby="faq">
         <h2 id="faq" className="mb-2 text-lg font-semibold">Questions fréquentes</h2>
         <div className="card-elevated divide-y divide-gray-100 overflow-hidden border border-gray-200 bg-white">
@@ -62,7 +83,7 @@ export default async function SupportPage() {
       </section>
 
       <section className="mt-6" aria-labelledby="contact">
-        <h2 id="contact" className="mb-2 text-lg font-semibold">Nous écrire</h2>
+        <h2 id="contact" className="mb-2 text-lg font-semibold">{SUPPORT_WHATSAPP ? "Ou par e-mail" : "Nous écrire"}</h2>
         <div className="card-elevated border border-gray-200 bg-white p-4 sm:p-5">
           <ContactForm
             orders={orders.map((o) => ({ id: o.id, label: `#${o.id.slice(-6)}` }))}
