@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { listSmartFinds } from "@/src/lib/data/db";
 import Image from "next/image";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
@@ -5,6 +6,7 @@ import { formatPriceUSD } from "@/src/lib/utils";
 import { AddSmartFindToCartButton } from "./parts";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Trouvailles", description: "Petits produits utiles livrés avec ton repas à la Gombe." };
 
 export default async function SmartFindsPage() {
   const products = await listSmartFinds();

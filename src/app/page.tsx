@@ -6,8 +6,11 @@ import { getRestaurants, listSmartFinds } from "@/src/lib/data/db";
 import { Utensils, Package, ShoppingCart } from "lucide-react";
 import { getCurrentUser } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { Stagger } from "@/src/components/Stagger";
 import { StarRating } from "@/src/components/StarRating";
+
+export const metadata: Metadata = { title: { absolute: "Apporte — Livraison de repas à la Gombe, Kinshasa" } };
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -31,7 +34,7 @@ export default async function Home() {
         <div className="mt-3">
           <SafeImage
             src="/images/hero-home.jpg"
-            alt="Hero"
+            alt="Plats livrés par Apporte à Kinshasa"
             width={1600}
             height={1000}
             priority
@@ -101,7 +104,7 @@ export default async function Home() {
 
       <section className="mt-6">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Smart Finds</h2>
+          <h2 className="text-lg font-semibold">Trouvailles</h2>
           <Link href="/smart-finds" className="text-sm text-emerald-700 underline">
             Tout voir
           </Link>
@@ -109,7 +112,8 @@ export default async function Home() {
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <Stagger delayBase={0.05}>
           {products.map((p) => (
-            <Card key={p.id} className="hover:shadow transition-shadow">
+            <Link href="/smart-finds" key={p.id}>
+            <Card className="h-full hover:shadow transition-shadow">
               <CardHeader className="font-medium">{p.name}</CardHeader>
               <CardContent>
                 <SafeImage
@@ -121,6 +125,7 @@ export default async function Home() {
                 />
               </CardContent>
             </Card>
+            </Link>
           ))}
           </Stagger>
         </div>

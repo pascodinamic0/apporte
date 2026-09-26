@@ -126,3 +126,8 @@ video {
   max-width: 100%;
   display: block;
 }
+
+@keyframes apporte-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

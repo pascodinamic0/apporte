@@ -18,10 +18,12 @@ import {
   riders as seedRiders,
   smartFinds as seedProducts,
 } from "../seed";
-import { formatPriceUSD, generatePin, randomId } from "../utils";
+import { generatePin, randomId } from "../utils";
 
-// In-memory "DB" for demo mode
-const db = {
+// In-memory "DB" for demo mode. Kept on globalThis so route handlers, server
+// components and server actions (bundled separately by Next) share one store.
+function createMemoryDb() {
+  return {
   restaurants: [...seedRestaurants] as Restaurant[],
   menuItems: [...seedMenu] as MenuItem[],
   products: [...seedProducts] as SmartFindProduct[],
@@ -31,7 +33,10 @@ const db = {
     string,
     { riderIds: string[]; currentIndex: number; expireAt?: number }
   >(), // per-order queue for offers
-};
+  };
+}
+const g = globalThis as typeof globalThis & { __apporteMemoryDb?: ReturnType<typeof createMemoryDb> };
+const db = (g.__apporteMemoryDb ??= createMemoryDb());
 
 export function isDemoMode(): boolean {
   return !(
@@ -95,13 +100,28 @@ export function createOrder(params: {
   restaurantId?: string;
   items: OrderItem[];
   address: string;
+  addressNotes?: string;
+  customerPhone?: string;
   zone?: string;
   paymentMethod: PaymentMethod;
 }): Order {
-  const subtotal = params.items.reduce(
-    (sum, it) => sum + it.unitPriceUsd * it.quantity,
-    0,
-  );
+  // Recompute names and prices from the catalogue (never trust the client)
+  const items: OrderItem[] = params.items.map((it) => {
+    if (it.kind === "food" && it.menuItemId) {
+      const m = db.menuItems.find((x) => x.id === it.menuItemId);
+      if (!m) throw new Error("invalid_item");
+      if (!m.available) throw new Error("unavailable_item");
+      if (params.restaurantId && m.restaurantId !== params.restaurantId) throw new Error("invalid_restaurant_item");
+      return { id: randomId("oi"), kind: "food", restaurantId: m.restaurantId, menuItemId: m.id, name: m.name, quantity: Number(it.quantity || 1), unitPriceUsd: m.priceUsd, imageUrl: m.imageUrl };
+    }
+    if (it.kind === "smart_find" && it.productId) {
+      const p = db.products.find((x) => x.id === it.productId);
+      if (!p) throw new Error("invalid_item");
+      return { id: randomId("oi"), kind: "smart_find", productId: p.id, name: p.name, quantity: Number(it.quantity || 1), unitPriceUsd: p.priceUsd, imageUrl: p.imageUrl };
+    }
+    throw new Error("invalid_item");
+  });
+  const subtotal = items.reduce((sum, it) => sum + it.unitPriceUsd * it.quantity, 0);
   const deliveryFee = params.restaurantId ? 2.5 : 3; // simple heuristic
   const pin = generatePin(4);
   const now = Date.now();
@@ -110,20 +130,23 @@ export function createOrder(params: {
     customerId: params.customerId,
     restaurantId: params.restaurantId,
     riderId: undefined,
-    items: params.items,
+    items,
     subtotalUsd: round2(subtotal),
     deliveryFeeUsd: deliveryFee,
     totalUsd: round2(subtotal + deliveryFee),
     address: params.address,
+    addressNotes: params.addressNotes,
+    customerPhone: params.customerPhone,
     zone: params.zone ?? PILOT_ZONE,
     paymentMethod: params.paymentMethod,
-    status: "placed",
+    status: params.restaurantId ? "placed" : "rider_searching",
     pin,
     createdAt: now,
     updatedAt: now,
     supportNotes: [],
   };
   db.orders.unshift(order);
+  if (!params.restaurantId) buildOfferQueueForOrder(order);
   return order;
 }
 

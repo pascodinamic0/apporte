@@ -2,15 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/src/lib/utils";
-import { ShoppingCart, Home, Utensils, Package, User } from "lucide-react";
+import { isActive, navItemsForRole } from "./nav-items";
 
-const items = [
-  { href: "/", label: "Accueil", icon: Home },
-  { href: "/food", label: "Nourriture", icon: Utensils },
-  { href: "/smart-finds", label: "Trouvailles", icon: Package },
-  { href: "/cart", label: "Panier", icon: ShoppingCart },
-  { href: "/account", label: "Compte", icon: User },
-];
+const items = navItemsForRole("customer", true);
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -27,11 +21,12 @@ export function BottomNav() {
       <ul className="flex items-center justify-around py-2 min-h-16">
         {items.map((it) => {
           const Icon = it.icon;
-          const active = pathname === it.href;
+          const active = isActive(pathname, it);
           return (
             <li key={it.href}>
               <Link
                 href={it.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center text-[11px] leading-none px-2 py-1.5 transition-transform active:scale-95",
                   active ? "text-emerald-700 font-medium" : "text-gray-700",

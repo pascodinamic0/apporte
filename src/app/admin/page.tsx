@@ -1,134 +1,84 @@
-import { listRiders, getRestaurants, getDemoUsers, listOrdersAll } from "@/src/lib/data/db";
-import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { listRiders, getRestaurants, listOrdersAll } from "@/src/lib/data/db";
 import { requireRole } from "@/src/lib/auth";
-import { statusLabelFr } from "@/src/lib/utils";
-import { SafeImage } from "@/src/components/SafeImage";
-import { Stagger } from "@/src/components/Stagger";
+import { AccessRequired } from "@/src/components/AccessRequired";
+import { formatPriceUSD } from "@/src/lib/utils";
+import { OrderRow, Panel } from "./parts";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Vue d’ensemble" };
+
+const ACTIVE = ["placed", "restaurant_accepted", "preparing", "rider_searching", "rider_assigned", "going_to_restaurant", "arrived", "picked_up", "delivering"];
+
+/** Start of the current day in Kinshasa (UTC+1), as epoch ms. */
+function kinshasaStartOfDay(now = new Date()) {
+  const k = new Date(now.getTime() + 3600_000);
+  return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - 3600_000;
+}
 
 export default async function AdminPage() {
   const user = await requireRole(["admin"]);
-  if (!user) {
-    return (
-      <div className="py-6">
-        <div className="text-lg">Accès admin requis.</div>
-        <Link href="/demo" className="text-emerald-700 underline">
-          Ouvrir la page Démo
-        </Link>
-      </div>
-    );
-  }
-  // Read recent orders directly from in-process data layer
-  const orders = await listOrdersAll();
-  const riders = await listRiders();
-  const merchants = await getRestaurants();
-  const customers = (await getDemoUsers()).filter((u) => u.role === "customer");
-  const today = new Date();
-  const sod = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const completedToday = orders.filter((o) => o.status === "delivered" && o.createdAt >= sod).length;
-  const cancelledToday = orders.filter((o) => o.status === "cancelled" && o.createdAt >= sod).length;
-  // Sparkline for orders per hour
-  const byHour: Record<number, number> = {};
-  const today2 = new Date();
-  const sod2 = new Date(today2.getFullYear(), today2.getMonth(), today2.getDate()).getTime();
-  for (const o of orders.filter((o) => o.createdAt >= sod2)) {
-    const h = new Date(o.createdAt).getHours();
-    byHour[h] = (byHour[h] || 0) + 1;
-  }
-  const points = Array.from({ length: 24 }, (_, h) => byHour[h] || 0);
-  const max = Math.max(1, ...points);
-  const path = points
-    .map((v, i) => {
-      const x = (i / 23) * 140;
-      const y = 40 - (v / max) * 40;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  if (!user) return <AccessRequired role="admin" />;
+  const [orders, riders, restaurants] = await Promise.all([listOrdersAll(), listRiders(), getRestaurants()]);
+  const names = new Map(restaurants.map((r) => [r.id, r.name]));
+  const sod = kinshasaStartOfDay();
+  const today = orders.filter((o) => o.createdAt >= sod);
+  const deliveredToday = today.filter((o) => o.status === "delivered");
+  const gmvToday = deliveredToday.reduce((s, o) => s + o.totalUsd, 0);
+  const active = orders.filter((o) => ACTIVE.includes(o.status));
+  const byHour = Array.from({ length: 24 }, () => 0);
+  for (const o of today) byHour[new Date(o.createdAt + 3600_000).getUTCHours()]++;
+  const max = Math.max(1, ...byHour);
+
   return (
-    <div className="py-2">
-      <h1 className="text-xl font-semibold mb-3">Admin</h1>
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
-        <Stat title="Commandes terminées (aujourd’hui)" value={String(completedToday)} />
-        <Stat title="Annulations (aujourd’hui)" value={String(cancelledToday)} />
-        <Stat title="Livreurs en ligne" value={String(riders.filter((r) => r.status === "online").length)} />
+    <div>
+      <h1 className="mb-3 text-2xl font-extrabold tracking-tight">Vue d’ensemble</h1>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat title="Commandes en cours" value={String(active.length)} href="/admin/commandes?f=active" />
+        <Stat title="Livrées aujourd’hui" value={String(deliveredToday.length)} href="/admin/commandes?f=delivered" />
+        <Stat title="Ventes livrées (jour)" value={formatPriceUSD(gmvToday)} />
+        <Stat title="Livreurs en ligne" value={`${riders.filter((r) => r.status !== "offline").length} / ${riders.length}`} href="/admin/livreurs" />
       </div>
-      <Card className="mt-3">
-        <CardHeader className="text-sm text-gray-600">Tendance des commandes (par heure)</CardHeader>
-        <CardContent>
-          <svg width="100%" height="60" viewBox="0 0 140 60" preserveAspectRatio="none">
-            <path d={`${path}`} stroke="#047857" strokeWidth="2" fill="none" />
-            <line x1="0" y1="40" x2="140" y2="40" stroke="#e5e7eb" />
-          </svg>
-        </CardContent>
-      </Card>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <ListCard title="Commandes récentes">
-          <Stagger>
-          {orders.slice(0, 8).map((o) => (
-            <Link key={o.id} href={`/order/${o.id}`} className="flex items-center justify-between text-sm hover:underline">
-              <div className="truncate">
-                #{o.id.slice(-6)} • {o.zone} • {o.items.length} article{ o.items.length>1 ? "s" : "" }
-              </div>
-              <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{statusLabelFr(o.status)}</div>
-            </Link>
+      <section className="card-elevated mt-3 border border-gray-200 bg-white p-4">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-medium">Commandes par heure (aujourd’hui)</span>
+          <span className="text-gray-500">{today.length} au total</span>
+        </div>
+        <div className="flex h-20 items-end gap-[3px]" role="img" aria-label="Histogramme des commandes par heure">
+          {byHour.map((v, h) => (
+            <div key={h} className="flex-1 rounded-t bg-emerald-600/80" style={{ height: `${Math.max(v ? 8 : 2, (v / max) * 100)}%`, opacity: v ? 1 : 0.25 }} title={`${h}h : ${v}`} />
           ))}
-          </Stagger>
-        </ListCard>
-        <ListCard title="Livreurs">
-          <Stagger>
-          {riders.map((r) => (
-            <div key={r.id} className="flex items-center justify-between text-sm">
-              <div>{r.name}</div>
-              <div className="text-xs rounded-full bg-gray-100 px-2 py-1">{r.status}</div>
-            </div>
-          ))}
-          </Stagger>
-        </ListCard>
-        <ListCard title="Commerçants">
-          <Stagger>
-          {merchants.map((m) => (
-            <div key={m.id} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <SafeImage src={m.imageUrl} alt={m.name} width={32} height={20} className="h-8 w-12 rounded object-cover" />
-                <div>{m.name}</div>
-              </div>
-              <div className="text-xs text-gray-600">{m.cuisine}</div>
-            </div>
-          ))}
-          </Stagger>
-        </ListCard>
-        <ListCard title="Clients">
-          <Stagger>
-          {customers.map((c) => (
-            <div key={c.id} className="flex items-center justify-between text-sm">
-              <div>{c.name}</div>
-              <div className="text-xs text-gray-600">{c.email}</div>
-            </div>
-          ))}
-          </Stagger>
-        </ListCard>
+        </div>
+        <div className="mt-1 flex justify-between text-[10px] text-gray-400"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>
+      </section>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Panel title="Commandes en cours" action={<Link href="/admin/commandes" className="text-sm font-medium">Tout voir</Link>}>
+          {active.length === 0 ? (
+            <p className="p-4 text-sm text-gray-600">Aucune commande en cours.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {active.slice(0, 6).map((o) => <OrderRow key={o.id} o={o} restaurantName={o.restaurantId ? names.get(o.restaurantId) : undefined} />)}
+            </ul>
+          )}
+        </Panel>
+        <Panel title="Dernières commandes" action={<Link href="/admin/commandes?f=all" className="text-sm font-medium">Historique</Link>}>
+          <ul className="divide-y divide-gray-100">
+            {orders.slice(0, 6).map((o) => <OrderRow key={o.id} o={o} restaurantName={o.restaurantId ? names.get(o.restaurantId) : undefined} />)}
+          </ul>
+        </Panel>
       </div>
     </div>
   );
 }
 
-function Stat({ title, value }: { title: string; value: string }) {
-  return (
-    <Card>
-      <CardHeader className="text-sm text-gray-600">{title}</CardHeader>
-      <CardContent className="text-2xl font-semibold">{value}</CardContent>
-    </Card>
+function Stat({ title, value, href }: { title: string; value: string; href?: string }) {
+  const inner = (
+    <>
+      <div className="text-xs font-medium text-gray-600">{title}</div>
+      <div className="mt-1 text-2xl font-extrabold tabular-nums">{value}</div>
+    </>
   );
+  const cls = "card-elevated block border border-gray-200 bg-white p-4";
+  return href ? <Link href={href} className={`${cls} hover:border-emerald-300`} style={{ color: "inherit" }}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
-
-function ListCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <Card>
-      <CardHeader className="font-medium">{title}</CardHeader>
-      <CardContent className="grid gap-2">{children}</CardContent>
-    </Card>
-  );
-}
-

@@ -7,7 +7,8 @@ import {
   listOrdersAll,
 } from "@/src/lib/data/db";
 import { getCurrentUser } from "@/src/lib/auth";
-import { OrderItem, PaymentMethod } from "@/src/lib/types";
+import type { OrderItem } from "@/src/lib/types";
+import { validateCreateOrder } from "@/src/lib/validation";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -28,39 +29,32 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = await req.json();
-  const {
-    restaurantId,
-    items,
-    address,
-    zone,
-    paymentMethod,
-  }: {
-    restaurantId?: string;
-    items: OrderItem[];
-    address: string;
-    zone?: string;
-    paymentMethod: PaymentMethod;
-  } = body;
-  if (!items?.length) {
-    return NextResponse.json({ error: "missing_items" }, { status: 400 });
+  if (user.role !== "customer") {
+    return NextResponse.json({ error: "forbidden", reason: "customers_only" }, { status: 403 });
+  }
+  const body = await req.json().catch(() => null);
+  const v = validateCreateOrder(body);
+  if (!v.ok) {
+    return NextResponse.json({ error: v.error, reason: v.reason, field: v.field }, { status: 400 });
   }
   try {
     const order = await createOrder({
       customerId: user.id,
-      restaurantId,
-      items,
-      address,
-      zone,
-      paymentMethod,
+      restaurantId: v.data.restaurantId,
+      items: v.data.items as OrderItem[],
+      address: v.data.address,
+      addressNotes: v.data.addressNotes,
+      customerPhone: v.data.customerPhone,
+      zone: v.data.zone,
+      paymentMethod: v.data.paymentMethod,
     });
     return NextResponse.json({ ok: true, order });
   } catch (e: any) {
     const msg = String(e?.message || "");
     if (["invalid_item", "unavailable_item", "invalid_restaurant_item"].includes(msg)) {
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return NextResponse.json({ error: msg, reason: msg }, { status: 400 });
     }
+    console.error("createOrder failed", e);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
-

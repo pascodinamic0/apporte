@@ -1,14 +1,20 @@
 /* Apporte Service Worker */
-const CACHE_STATIC = "apporte-static-v2";
-const CACHE_ASSETS = ["/", "/manifest.webmanifest"];
+const CACHE_STATIC = "apporte-static-v3";
+const OFFLINE_URL = "/offline";
+const CACHE_ASSETS = [OFFLINE_URL, "/manifest.webmanifest", "/logo/apporte-symbol.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_STATIC);
-      try {
-        await cache.addAll(CACHE_ASSETS);
-      } catch {}
+      // Fetch each asset individually so one failure doesn't skip the rest.
+      await Promise.all(
+        CACHE_ASSETS.map((u) =>
+          fetch(u, { cache: "reload", credentials: "omit" })
+            .then((r) => (r.ok ? cache.put(u, r) : undefined))
+            .catch(() => undefined),
+        ),
+      );
       // Activate immediately
       await self.skipWaiting();
     })(),
@@ -42,7 +48,7 @@ self.addEventListener("fetch", (event) => {
         try {
           return await fetch(req);
         } catch {
-          const cached = await caches.match("/");
+          const cached = await caches.match(OFFLINE_URL);
           return cached || Response.error();
         }
       })(),

@@ -2,48 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/src/lib/utils";
-import {
-  ClipboardList,
-  Utensils,
-  BarChart3,
-  Bike,
-  Home,
-  LifeBuoy,
-  User,
-} from "lucide-react";
+import { isActive, navItemsForRole } from "./nav-items";
 
-type Item = { href: string; label: string; icon: any };
 type Role = "merchant" | "rider" | "admin";
-
-function itemsForRole(role: Role): Item[] {
-  if (role === "merchant") {
-    return [
-      { href: "/merchant", label: "Commandes", icon: ClipboardList },
-      { href: "/merchant/menu", label: "Menu", icon: Utensils },
-      { href: "/merchant/stats", label: "Stats", icon: BarChart3 },
-      { href: "/demo", label: "Rôle", icon: User },
-    ];
-  }
-  if (role === "rider") {
-    return [
-      { href: "/rider", label: "Courses", icon: Bike },
-      { href: "/support", label: "Support", icon: LifeBuoy },
-      { href: "/demo", label: "Rôle", icon: User },
-    ];
-  }
-  if (role === "admin") {
-    return [
-      { href: "/admin", label: "Accueil", icon: Home },
-      { href: "/support", label: "Support", icon: LifeBuoy },
-      { href: "/demo", label: "Rôle", icon: User },
-    ];
-  }
-  return [];
-}
 
 export function RoleBottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
-  const items = itemsForRole(role);
+  const items = navItemsForRole(role, true).map((i) => (i.href === "/admin" ? { ...i, label: "Accueil" } : i));
   return (
     <nav
       role="navigation"
@@ -53,14 +18,15 @@ export function RoleBottomNav({ role }: { role: Role }) {
       <ul className="flex items-center justify-around py-2 min-h-16">
         {items.map((it) => {
           const Icon = it.icon;
-          const active = pathname === it.href;
+          const active = isActive(pathname, it);
           return (
             <li key={it.href}>
               <Link
                 href={it.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center text-[11px] leading-none px-2 py-1.5 transition-transform active:scale-95",
-                  active ? "text-emerald-700 font-medium" : "text-gray-700",
+                  "flex min-w-14 flex-col items-center text-[11px] leading-none px-1.5 py-1.5 transition-transform active:scale-95",
+                  active ? "text-emerald-700 font-semibold" : "text-gray-700",
                 )}
               >
                 <Icon aria-hidden className="h-5 w-5" />
@@ -73,4 +39,3 @@ export function RoleBottomNav({ role }: { role: Role }) {
     </nav>
   );
 }
-

@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
-import { formatPriceUSD } from "@/src/lib/utils";
+import Link from "next/link";
+import { formatPriceUSD, paymentLabelFr } from "@/src/lib/utils";
+import { formatDrcPhone } from "@/src/lib/phone";
 import { SafeImage } from "@/src/components/SafeImage";
 import { RateOrder } from "./parts";
 
@@ -31,7 +33,7 @@ function labelForStatus(s: string, isSmart: boolean) {
     case "rider_assigned":
       return "Livreur assigné";
     case "going_to_restaurant":
-      return isSmart ? "En route vers le dépôt" : "En route vers le pickup";
+      return isSmart ? "En route vers le dépôt" : "En route vers le restaurant";
     case "arrived":
       return isSmart ? "Arrivé au dépôt" : "Livreur arrivé";
     case "picked_up":
@@ -46,14 +48,23 @@ function labelForStatus(s: string, isSmart: boolean) {
 
 export function OrderClient({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<any | null>(null);
+  const [error, setError] = useState<null | "unauthorized" | "forbidden" | "not_found">(null);
 
   useEffect(() => {
     let stop = false;
     async function tick() {
+      if (document.visibilityState !== "visible") return;
       try {
         const r = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
-        const data = await r.json();
-        if (!stop) setOrder(data.order);
+        const data = await r.json().catch(() => ({}));
+        if (stop) return;
+        if (r.status === 401) setError("unauthorized");
+        else if (r.status === 403) setError("forbidden");
+        else if (r.status === 404) setError("not_found");
+        else if (data.order) {
+          setError(null);
+          setOrder(data.order);
+        }
       } catch {}
     }
     tick();
@@ -64,22 +75,53 @@ export function OrderClient({ orderId }: { orderId: string }) {
     };
   }, [orderId]);
 
-  if (!order) return null;
+  if (error && !order) {
+    const msg = {
+      unauthorized: ["Connecte-toi pour suivre cette commande", "Le suivi est réservé au client, au restaurant, au livreur et à l’équipe Apporte."],
+      forbidden: ["Cette commande n’est pas liée à ton compte", "Vérifie que tu es connecté avec le bon compte."],
+      not_found: ["Commande introuvable", "Ce lien n’existe pas ou plus."],
+    }[error];
+    return (
+      <div className="mx-auto max-w-md py-10 text-center">
+        <h1 className="text-xl font-bold">{msg[0]}</h1>
+        <p className="mt-1 text-sm text-gray-600">{msg[1]}</p>
+        <div className="mt-4 flex justify-center gap-3 text-sm font-medium">
+          <Link href="/demo">Changer de compte</Link>
+          <Link href="/">Accueil</Link>
+        </div>
+      </div>
+    );
+  }
+  if (!order) {
+    return (
+      <div aria-busy="true" aria-label="Chargement de la commande">
+        <div className="h-28 rounded-lg bg-gray-100" />
+        <div className="mt-3 h-6 w-48 rounded bg-gray-100" />
+        <div className="mt-3 h-64 rounded-xl bg-gray-50" />
+      </div>
+    );
+  }
   const isSmart = !order.restaurantId;
   const activeSteps = isSmart ? steps.filter((s) => s !== "restaurant_accepted" && s !== "preparing") : steps;
   const idx = activeSteps.indexOf(order.status);
   return (
     <>
       <div className="rounded-lg overflow-hidden mb-2">
-        <img src="/images/map.jpg" alt="Carte de Kinshasa" className="h-28 w-full object-cover" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/map.jpg" alt="Plan du quartier de la Gombe, Kinshasa" className="h-28 w-full object-cover" />
       </div>
       <h1 className="text-xl font-semibold mb-2">Commande #{order.id.slice(-6)}</h1>
       <div className="text-sm text-gray-600 mb-2">
-        Total: {formatPriceUSD(order.totalUsd)} • Paiement: {order.paymentMethod}
+        Total : {formatPriceUSD(order.totalUsd)} · Paiement : {paymentLabelFr(order.paymentMethod)}
+      </div>
+      <div className="mb-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+        <div><span className="font-medium">Adresse :</span> {order.address}{order.zone ? ` (${order.zone})` : ""}</div>
+        {order.addressNotes && <div><span className="font-medium">Repère :</span> {order.addressNotes}</div>}
+        {order.customerPhone && <div><span className="font-medium">Téléphone :</span> {formatDrcPhone(order.customerPhone)}</div>}
       </div>
       {order.pin && (
         <div className="mb-3 text-sm">
-          Code de livraison (PIN):
+          Code de livraison (PIN) à donner au livreur :
           <span className="ml-2 inline-block rounded-md bg-emerald-50 px-2 py-1 font-mono text-base font-bold text-emerald-800">
             {order.pin}
           </span>

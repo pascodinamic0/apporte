@@ -1,11 +1,13 @@
 "use client";
 import { create } from "zustand";
 import type { OrderItem } from "@/src/lib/types";
+import { confirmDialog } from "@/src/components/ConfirmDialog";
 
 type CartState = {
   items: OrderItem[];
   restaurantId?: string;
-  addItem: (item: OrderItem, opts?: { restaurantId?: string }) => void;
+  /** Resolves true when the item was added (false if the user kept the other cart). */
+  addItem: (item: OrderItem, opts?: { restaurantId?: string }) => Promise<boolean>;
   removeItem: (id: string) => void;
   setQuantity: (id: string, quantity: number) => void;
   clear: () => void;
@@ -14,21 +16,25 @@ type CartState = {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   restaurantId: undefined,
-  addItem: (item, opts) => {
-    const { items, restaurantId } = get();
+  addItem: async (item, opts) => {
+    const { restaurantId } = get();
     const incomingRest = opts?.restaurantId;
     const sameRestaurant = !restaurantId || !incomingRest || restaurantId === incomingRest;
-    if (!sameRestaurant && typeof window !== "undefined") {
-      const proceed = window.confirm(
-        "Ton panier contient des articles d’un autre restaurant. Le vider et ajouter celui-ci ?",
-      );
-      if (!proceed) return;
+    if (!sameRestaurant) {
+      const proceed = await confirmDialog({
+        title: "Commencer un nouveau panier ?",
+        message: "Ton panier contient des plats d’un autre restaurant. Une commande = un restaurant.",
+        confirmLabel: "Vider et ajouter",
+        cancelLabel: "Garder mon panier",
+      });
+      if (!proceed) return false;
     }
-    const baseItems = sameRestaurant ? items : [];
+    const baseItems = sameRestaurant ? get().items : [];
     set({
       items: mergeItem(baseItems, item),
-      restaurantId: incomingRest ?? restaurantId,
+      restaurantId: incomingRest ?? get().restaurantId,
     });
+    return true;
   },
   removeItem: (id) => {
     const items = get().items.filter((i) => i.id !== id);

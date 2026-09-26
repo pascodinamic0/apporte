@@ -21,7 +21,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apporte — On te l’apporte",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://apporte.vercel.app"),
+  title: { default: "Apporte — On te l’apporte", template: "%s · Apporte" },
+  openGraph: { siteName: "Apporte", locale: "fr_CD", type: "website" },
   description:
     "Commande de nourriture et trouvailles utiles à Kinshasa. On te l’apporte.",
   manifest: "/manifest.webmanifest",

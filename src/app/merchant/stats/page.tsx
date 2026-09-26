@@ -1,12 +1,16 @@
+import type { Metadata } from "next";
 import { requireRole } from "@/src/lib/auth";
+import { AccessRequired } from "@/src/components/AccessRequired";
+import { formatPriceUSD } from "@/src/lib/utils";
 import { listOrdersForRestaurant } from "@/src/lib/data/db";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Statistiques" };
 
 export default async function MerchantStats() {
   const user = await requireRole(["merchant"]);
-  if (!user) return <div className="py-6">Accès commerçant requis.</div>;
+  if (!user || !user.merchantId) return <AccessRequired role="commerçant" />;
   const rid = user.merchantId!;
   const orders = await listOrdersForRestaurant(rid);
   const today = new Date();
@@ -33,8 +37,8 @@ export default async function MerchantStats() {
       <h1 className="text-xl font-semibold mb-3">Statistiques (aujourd’hui)</h1>
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard title="Commandes" value={todays.length.toString()} />
-        <StatCard title="Ventes" value={`$${sales.toFixed(2)}`} />
-        <StatCard title="Panier moyen" value={`$${aov.toFixed(2)}`} />
+        <StatCard title="Ventes" value={formatPriceUSD(sales)} />
+        <StatCard title="Panier moyen" value={formatPriceUSD(aov)} />
       </div>
       <Card className="mt-3">
         <CardHeader className="text-sm text-gray-600">Tendance des ventes (par heure)</CardHeader>

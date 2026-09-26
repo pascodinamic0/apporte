@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser } from "@/src/lib/auth";
 import { listOrdersForCustomer } from "@/src/lib/data/db";
@@ -6,6 +7,7 @@ import { formatPriceUSD, statusLabelFr } from "@/src/lib/utils";
 import { getRestaurant } from "@/src/lib/data/db";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Mes commandes", robots: { index: false } };
 
 export default async function OrdersPage() {
   const user = await getCurrentUser();
