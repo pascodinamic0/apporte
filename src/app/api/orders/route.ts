@@ -47,12 +47,17 @@ export async function POST(req: NextRequest) {
       customerPhone: v.data.customerPhone,
       zone: v.data.zone,
       paymentMethod: v.data.paymentMethod,
+      deliveryLat: v.data.deliveryLat,
+      deliveryLng: v.data.deliveryLng,
     });
     return NextResponse.json({ ok: true, order });
   } catch (e: any) {
     const msg = String(e?.message || "");
-    if (["invalid_item", "unavailable_item", "invalid_restaurant_item"].includes(msg)) {
+    if (["invalid_item", "unavailable_item", "invalid_restaurant_item", "invalid_restaurant", "zone_not_served"].includes(msg)) {
       return NextResponse.json({ error: msg, reason: msg }, { status: 400 });
+    }
+    if (msg === "restaurant_closed") {
+      return NextResponse.json({ error: msg, reason: msg }, { status: 409 });
     }
     console.error("createOrder failed", e);
     return NextResponse.json({ error: "server_error" }, { status: 500 });

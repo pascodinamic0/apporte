@@ -1,3 +1,5 @@
+import type { Availability, WeekHours } from "./hours";
+
 export type UserRole = "customer" | "merchant" | "rider" | "admin";
 
 export interface User {
@@ -20,7 +22,14 @@ export interface Restaurant {
   zone: string;
   latitude: number;
   longitude: number;
+  /** Open right now (hours + pause switch + not suspended). */
   isOpen: boolean;
+  acceptingOrders?: boolean;
+  hours?: WeekHours;
+  suspended?: boolean;
+  commissionPct?: number | null;
+  phone?: string;
+  availability?: Availability;
 }
 
 export interface MenuItem {
@@ -32,6 +41,8 @@ export interface MenuItem {
   available: boolean;
   imageUrl?: string;
   cuisineTag?: string;
+  category?: string;
+  sortOrder?: number;
 }
 
 export interface SmartFindProduct {
@@ -55,6 +66,8 @@ export interface Rider {
   latitude: number;
   longitude: number;
   earningsTodayUsd: number;
+  suspended?: boolean;
+  phone?: string;
 }
 
 export type OrderStatus =
@@ -120,6 +133,18 @@ export interface Order {
   updatedAt: number;
   rating?: Rating;
   supportNotes?: SupportNote[];
+  commissionUsd?: number;
+  riderEarningUsd?: number;
+  vatUsd?: number;
+  deliveryLat?: number;
+  deliveryLng?: number;
+  cancelReason?: string;
+  cancelledBy?: string;
+  refundFlag?: boolean;
+  refundNote?: string;
+  prepMinutes?: number;
+  acceptedAt?: number;
+  deliveredAt?: number;
 }
 
 export interface DispatchOffer {

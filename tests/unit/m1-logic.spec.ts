@@ -8,6 +8,7 @@ import { checkMerchantAction } from "../../src/lib/orderGuard";
 import { normalizeDrcPhone, formatDrcPhone } from "../../src/lib/phone";
 import { validateCreateOrder } from "../../src/lib/validation";
 import { parseMenuPrice } from "../../src/lib/price";
+import { computeBreakdown, DEFAULT_FEES, DEFAULT_ZONES, zoneFee } from "../../src/lib/fees";
 
 const merchant = { role: "merchant" as const, merchantId: "rest_kfc_gombe" };
 const placedKfc = { restaurantId: "rest_kfc_gombe", status: "placed" as const };
@@ -88,7 +89,9 @@ test.describe("validateCreateOrder", () => {
     expect(validateCreateOrder({ ...good, customerPhone: "243000000000" })).toMatchObject({ ok: false, reason: "invalid_phone" });
   });
   test("unserved zone, empty cart, bad quantities and short address are refused", () => {
-    expect(validateCreateOrder({ ...good, zone: "Limete" })).toMatchObject({ ok: false, reason: "zone_not_served" });
+    // A real zone name is accepted here; the server refuses it if the zone is inactive.
+    expect(validateCreateOrder({ ...good, zone: "Limete" }).ok).toBe(true);
+    expect(validateCreateOrder({ ...good, zone: "??" })).toMatchObject({ ok: false, reason: "zone_not_served" });
     expect(validateCreateOrder({ ...good, items: [] })).toMatchObject({ ok: false, reason: "missing_items" });
     expect(validateCreateOrder({ ...good, items: [{ kind: "food", menuItemId: "mi_kfc_1", quantity: 0 }] })).toMatchObject({ ok: false, reason: "invalid_items" });
     expect(validateCreateOrder({ ...good, items: [{ kind: "food", menuItemId: "mi_kfc_1", quantity: 1.5 }] })).toMatchObject({ ok: false, reason: "invalid_items" });
@@ -119,5 +122,19 @@ test.describe("parseWhatsappNumber (NEXT_PUBLIC_SUPPORT_WHATSAPP)", () => {
     for (const v of ["", undefined, null, "+243 81 234 56789", "243000000000", "abc"]) {
       expect(parseWhatsappNumber(v as string), String(v)).toBeNull();
     }
+  });
+});
+
+
+test.describe("fee settings", () => {
+  test("defaults match the accepted grid and an inactive zone has no fee", () => {
+    expect(DEFAULT_FEES).toEqual({ commissionPct: 15, riderSharePct: 80, vatPct: 16 });
+    const b = computeBreakdown(10, 2, DEFAULT_FEES);
+    expect(b.commissionUsd).toBe(1.5);
+    expect(b.riderEarningUsd).toBe(1.6);
+    expect(b.deliveryFeeUsd).toBe(2);
+    expect(b.vatUsd).toBeCloseTo((12 * 16) / 116, 2);
+    expect(zoneFee(DEFAULT_ZONES, "Gombe")).toBe(2);
+    expect(zoneFee(DEFAULT_ZONES, "Limete")).toBeNull();
   });
 });

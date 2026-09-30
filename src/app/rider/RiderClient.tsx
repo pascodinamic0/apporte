@@ -9,6 +9,7 @@ import { cn, formatPriceUSD, paymentLabelFr } from "@/src/lib/utils";
 import { formatDrcPhone } from "@/src/lib/phone";
 import type { RiderStatus } from "@/src/lib/types";
 import type { RiderActiveJob, RiderState } from "@/src/lib/data/db";
+import { useLive } from "@/src/lib/client/live";
 
 type Offer = {
   orderId: string;
@@ -64,6 +65,14 @@ export function RiderClient({ initial }: { initial: RiderState }) {
     } catch {}
   }, []);
 
+  // Keep the active job in sync even if realtime is down
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 6000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
   // Restore from the server whenever the app comes back (reload, lock screen, tab switch)
   useEffect(() => {
     const onVis = () => {
@@ -79,30 +88,33 @@ export function RiderClient({ initial }: { initial: RiderState }) {
     };
   }, [refresh]);
 
-  // Poll for offers only while online, free and visible
+  const pollOffer = useCallback(async () => {
+    if (status !== "online" || job || document.visibilityState !== "visible" || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const r = await fetch("/api/dispatch/offer", { cache: "no-store" });
+      if (!r.ok) return;
+      const data = await r.json();
+      setOffer(data.offer ?? null);
+    } catch {
+    } finally {
+      inFlight.current = false;
+    }
+  }, [status, job]);
+
+  useLive(["riders", `rider:${riderId}`], (e) => {
+    if (e.type === "poll") return;
+    void pollOffer();
+    void refresh();
+  }, { pollMs: 3_600_000, fastPollMs: 3_600_000, enabled: status === "online" && !job });
+
+  // Poll for offers only while online, free and visible (fallback if realtime is down)
   useEffect(() => {
     if (status !== "online" || job) return;
-    let stop = false;
-    async function poll() {
-      if (stop || document.visibilityState !== "visible" || inFlight.current) return;
-      inFlight.current = true;
-      try {
-        const r = await fetch("/api/dispatch/offer", { cache: "no-store" });
-        if (!r.ok) return;
-        const data = await r.json();
-        if (!stop) setOffer(data.offer ?? null);
-      } catch {
-      } finally {
-        inFlight.current = false;
-      }
-    }
-    poll();
-    const id = setInterval(poll, 3000);
-    return () => {
-      stop = true;
-      clearInterval(id);
-    };
-  }, [status, job]);
+    void pollOffer();
+    const id = setInterval(() => void pollOffer(), 3000);
+    return () => clearInterval(id);
+  }, [status, job, pollOffer]);
 
   useEffect(() => {
     if (!offer) return;

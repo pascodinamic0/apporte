@@ -25,7 +25,8 @@ export function RestaurantGrid({
       const q = query.toLowerCase();
       list = list.filter((r) => r.name.toLowerCase().includes(q));
     }
-    return list;
+    // Open restaurants first; closed ones stay visible, marked as closed
+    return [...list].sort((a, b) => Number(b.isOpen) - Number(a.isOpen));
   }, [restaurants, query, activeCuisine]);
   return (
     <>
@@ -60,8 +61,8 @@ export function RestaurantGrid({
       <div className="grid gap-4 sm:grid-cols-2 mt-2">
         <Stagger>
         {filtered.map((r) => (
-          <Link href={`/restaurant/${r.id}`} key={r.id}>
-            <Card className="hover:shadow transition-shadow">
+          <Link href={`/restaurant/${r.id}`} key={r.id} data-restaurant-id={r.id} data-open={r.isOpen ? "1" : "0"}>
+            <Card className={`hover:shadow transition-shadow ${r.isOpen ? "" : "opacity-80"}`}>
               <CardHeader className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">{r.name}</div>
@@ -77,7 +78,7 @@ export function RestaurantGrid({
                   alt={r.name}
                   width={640}
                   height={320}
-                  className="h-32 w-full rounded-lg object-cover mb-2"
+                  className={`h-32 w-full rounded-lg object-cover mb-2 ${r.isOpen ? "" : "grayscale"}`}
                 />
                 <div className="flex items-center justify-between">
                   <Badge
@@ -88,8 +89,11 @@ export function RestaurantGrid({
                         : "bg-gray-100 text-gray-600 border-gray-200"
                     }
                   >
-                    {r.isOpen ? "Ouvert" : "Fermé"}
+                    {r.isOpen ? "Ouvert" : r.availability?.label ?? "Fermé"}
                   </Badge>
+                  {!r.isOpen && r.availability?.detail && r.availability.reason === "outside_hours" && (
+                    <span className="mr-auto ml-2 text-xs text-gray-500">{r.availability.detail}</span>
+                  )}
                   <StarRating value={r.rating} />
                 </div>
               </CardContent>

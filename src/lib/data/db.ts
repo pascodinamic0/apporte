@@ -14,8 +14,12 @@ import { PILOT_ZONE } from "../seed";
 import { generatePin, randomId } from "../utils";
 import { getServiceClient } from "../supabase/server";
 import * as memory from "./memory";
+import { computeBreakdown, DEFAULT_FEES, zoneFee } from "../fees";
+import { normalizeHours, restaurantAvailability } from "../hours";
+import { getFeeSettings, listZones } from "./settings";
+import { emitOrderEvent } from "../events";
 
-function supabaseConfigured(): boolean {
+export function supabaseConfigured(): boolean {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
   );
@@ -28,7 +32,7 @@ export async function getRestaurants(): Promise<Restaurant[]> {
   const { data, error } = await supabase
     .from("restaurants")
     .select("*")
-    .eq("is_open", true)
+    .eq("suspended", false)
     .order("name", { ascending: true });
   if (error) throw error;
   return (data || []).map(mapRestaurant);
@@ -49,6 +53,8 @@ export async function getMenuForRestaurant(restaurantId: string): Promise<MenuIt
     .from("menu_items")
     .select("*")
     .eq("restaurant_id", restaurantId)
+    .eq("archived", false)
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
   return (data || []).map(mapMenuItem);
@@ -171,9 +177,22 @@ export async function createOrder(params: {
   customerPhone?: string;
   zone?: string;
   paymentMethod: PaymentMethod;
+  deliveryLat?: number;
+  deliveryLng?: number;
 }): Promise<Order> {
   if (!supabaseConfigured()) return memory.createOrder(params);
   const supabase = getServiceClient();
+  // Closed, paused or suspended restaurants cannot take orders
+  let restaurant: Restaurant | undefined;
+  if (params.restaurantId) {
+    restaurant = await getRestaurant(params.restaurantId);
+    if (!restaurant) throw new Error("invalid_restaurant");
+    if (!restaurant.isOpen) throw new Error("restaurant_closed");
+  }
+  const [fees, zones] = await Promise.all([getFeeSettings(), listZones()]);
+  const zoneName = params.zone ?? PILOT_ZONE;
+  const fee = zoneFee(zones, zoneName);
+  if (fee == null) throw new Error("zone_not_served");
   // Recompute prices and names server-side from DB
   const menuIds = params.items.filter((i) => i.kind === "food" && i.menuItemId).map((i) => i.menuItemId as string);
   const prodIds = params.items.filter((i) => i.kind === "smart_find" && i.productId).map((i) => i.productId as string);
@@ -226,7 +245,7 @@ export async function createOrder(params: {
   });
 
   const subtotal = serverItems.reduce((sum, it) => sum + it.unit_price_usd * it.quantity, 0);
-  const deliveryFee = params.restaurantId ? 2.5 : 3;
+  const bd = computeBreakdown(subtotal, fee, fees, restaurant?.commissionPct ?? null);
   const pin = generatePin(4);
   const now = Date.now();
   const id = randomId("ord");
@@ -235,13 +254,18 @@ export async function createOrder(params: {
     customer_id: params.customerId,
     restaurant_id: params.restaurantId ?? null,
     rider_id: null,
-    subtotal_usd: round2(subtotal),
-    delivery_fee_usd: deliveryFee,
-    total_usd: round2(subtotal + deliveryFee),
+    subtotal_usd: bd.subtotalUsd,
+    delivery_fee_usd: bd.deliveryFeeUsd,
+    total_usd: bd.totalUsd,
+    commission_usd: params.restaurantId ? bd.commissionUsd : 0,
+    rider_earning_usd: bd.riderEarningUsd,
+    vat_usd: bd.vatUsd,
+    delivery_lat: params.deliveryLat ?? null,
+    delivery_lng: params.deliveryLng ?? null,
     address: params.address,
     address_notes: params.addressNotes ?? null,
     customer_phone: params.customerPhone ?? null,
-    zone: params.zone ?? PILOT_ZONE,
+    zone: zoneName,
     payment_method: params.paymentMethod,
     status: (params.restaurantId ? "placed" : "rider_searching") as OrderStatus,
     pin,
@@ -281,15 +305,20 @@ export async function createOrder(params: {
     await supabase.from("orders").delete().eq("id", id);
     throw new Error("Order creation failed");
   }
+  await emitOrderEvent(id, { created: true });
   return full;
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  extra: Record<string, unknown> = {},
+) {
   if (!supabaseConfigured()) return memory.updateOrderStatus(orderId, status);
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("orders")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status, updated_at: new Date().toISOString(), ...extra })
     .eq("id", orderId)
     .select("*")
     .maybeSingle();
@@ -298,6 +327,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
     const order = mapOrderRow(data);
     await buildOfferQueueForOrder(order);
   }
+  await emitOrderEvent(orderId);
 }
 
 export async function setOrderRating(
@@ -349,7 +379,7 @@ export async function nextOfferForRider(riderId: string) {
   const rres = await supabase.from("riders").select("*").eq("id", riderId).maybeSingle();
   if (rres.error) throw rres.error;
   const rider = rres.data ? mapRider(rres.data) : undefined;
-  if (!rider || rider.status !== "online") return null;
+  if (!rider || rider.status !== "online" || rider.suspended) return null;
   // Candidate orders
   const ores = await supabase
     .from("orders")
@@ -441,6 +471,7 @@ export async function declineOffer(riderId: string, orderId: string) {
       .from("dispatch_queues")
       .update({ current_index: nextIndex, expire_at: null, updated_at: new Date().toISOString() })
       .eq("order_id", orderId);
+    await emitOrderEvent(orderId);
   }
 }
 
@@ -461,6 +492,7 @@ export async function acceptOffer(riderId: string, orderId: string) {
   if (upd.error) throw upd.error;
   const updR = await supabase.from("riders").update({ status: "busy" }).eq("id", riderId);
   if (updR.error) throw updR.error;
+  await emitOrderEvent(orderId);
   return true;
 }
 
@@ -475,6 +507,7 @@ export async function confirmPickup(riderId: string, orderId: string) {
     .update({ status: "picked_up", updated_at: new Date().toISOString() })
     .eq("id", orderId);
   if (error) throw error;
+  await emitOrderEvent(orderId);
   return true;
 }
 
@@ -492,7 +525,7 @@ export async function confirmDelivered(riderId: string, orderId: string, entered
   if (o.pin !== enteredPin) return { ok: false as const, reason: "bad_pin" as const };
   const { error } = await supabase
     .from("orders")
-    .update({ status: "delivered", updated_at: new Date().toISOString() })
+    .update({ status: "delivered", updated_at: new Date().toISOString(), delivered_at: new Date().toISOString() })
     .eq("id", orderId);
   if (error) throw error;
   // Update rider earnings and status
@@ -508,6 +541,7 @@ export async function confirmDelivered(riderId: string, orderId: string, entered
       .eq("id", riderId);
     if (wr.error) throw wr.error;
   }
+  await emitOrderEvent(orderId);
   return { ok: true as const };
 }
 
@@ -534,12 +568,16 @@ async function guardRiderProgress(riderId: string, orderId: string, status: Orde
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", orderId);
   if (error) throw error;
+  await emitOrderEvent(orderId);
   return true;
 }
 
-export async function merchantAccept(orderId: string) {
+export async function merchantAccept(orderId: string, prepMinutes?: number) {
   if (!supabaseConfigured()) return memory.merchantAccept(orderId);
-  await updateOrderStatus(orderId, "restaurant_accepted");
+  await updateOrderStatus(orderId, "restaurant_accepted", {
+    accepted_at: new Date().toISOString(),
+    ...(prepMinutes ? { prep_minutes: prepMinutes } : {}),
+  });
   return true;
 }
 export async function merchantSetPreparing(orderId: string) {
@@ -570,8 +608,9 @@ export async function getDemoUsers() {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
+/** Rider keeps riderSharePct (80% by default) of the delivery fee; stored per order at checkout. */
 function estimateEarningsUsd(order: Order): number {
-  return round2(order.deliveryFeeUsd * 0.7);
+  return order.riderEarningUsd ?? round2((order.deliveryFeeUsd * DEFAULT_FEES.riderSharePct) / 100);
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -665,13 +704,13 @@ async function buildOffer(orderId: string, riderId: string) {
   };
 }
 
-async function buildOfferQueueForOrder(order: Order) {
+export async function buildOfferQueueForOrder(order: Order) {
   const supabase = getServiceClient();
   const rest = order.restaurantId ? await getRestaurant(order.restaurantId) : undefined;
   // Smart Finds hub when no restaurant
   const HUB_LAT = -4.312;
   const HUB_LON = 15.31;
-  const { data, error } = await supabase.from("riders").select("*").eq("status", "online");
+  const { data, error } = await supabase.from("riders").select("*").eq("status", "online").eq("suspended", false);
   if (error) throw error;
   const eligible = (data || []).map(mapRider);
   const ranked = eligible
@@ -725,7 +764,7 @@ async function maybeAdvanceOfferQueue(orderId: string) {
     .eq("order_id", orderId);
 }
 
-function mapOrderWithRelations(row: any): Order {
+export function mapOrderWithRelations(row: any): Order {
   const base = mapOrderRow(row);
   const rawItems = Array.isArray(row.order_items) ? row.order_items : [];
   // Stable order by created_at when embedded
@@ -751,7 +790,7 @@ function mapOrderWithRelations(row: any): Order {
  * orders never point at removed files or dead third-party URLs. A stored image is
  * only kept when the catalogue has none and it is a local file.
  */
-async function hydrateOrderImages(orders: Order[]): Promise<Order[]> {
+export async function hydrateOrderImages(orders: Order[]): Promise<Order[]> {
   if (orders.length === 0) return [];
   const all = orders.flatMap((o) => o.items);
   const menuIds = Array.from(new Set(all.map((i) => i.menuItemId).filter(Boolean) as string[]));
@@ -781,7 +820,7 @@ async function hydrateOrderImages(orders: Order[]): Promise<Order[]> {
 }
 
 // Row -> type mappers
-function mapRestaurant(r: any): Restaurant {
+export function mapRestaurant(r: any): Restaurant {
   return {
     id: r.id,
     name: r.name,
@@ -793,10 +832,27 @@ function mapRestaurant(r: any): Restaurant {
     zone: r.zone,
     latitude: Number(r.latitude),
     longitude: Number(r.longitude),
-    isOpen: !!r.is_open,
+    ...restaurantState(r),
   };
 }
-function mapMenuItem(m: any): MenuItem {
+export function restaurantState(r: any) {
+  const hours = normalizeHours(r.hours);
+  const availability = restaurantAvailability({
+    acceptingOrders: r.accepting_orders !== false,
+    suspended: !!r.suspended,
+    hours,
+  });
+  return {
+    isOpen: availability.open,
+    acceptingOrders: r.accepting_orders !== false,
+    hours,
+    suspended: !!r.suspended,
+    commissionPct: r.commission_pct != null ? Number(r.commission_pct) : null,
+    phone: r.phone ?? undefined,
+    availability,
+  };
+}
+export function mapMenuItem(m: any): MenuItem {
   return {
     id: m.id,
     restaurantId: m.restaurant_id,
@@ -806,6 +862,8 @@ function mapMenuItem(m: any): MenuItem {
     available: !!m.available,
     imageUrl: m.image_url ?? undefined,
     cuisineTag: m.cuisine_tag ?? undefined,
+    category: m.category ?? undefined,
+    sortOrder: Number(m.sort_order ?? 0),
   };
 }
 function mapProduct(p: any): SmartFindProduct {
@@ -820,7 +878,7 @@ function mapProduct(p: any): SmartFindProduct {
     tags: p.tags ?? undefined,
   };
 }
-function mapRider(r: any): Rider {
+export function mapRider(r: any): Rider {
   return {
     id: r.id,
     name: r.name,
@@ -829,9 +887,11 @@ function mapRider(r: any): Rider {
     latitude: Number(r.latitude),
     longitude: Number(r.longitude),
     earningsTodayUsd: Number(r.earnings_today_usd ?? 0),
+    suspended: !!r.suspended,
+    phone: r.phone ?? undefined,
   };
 }
-function mapOrderRow(o: any): Order {
+export function mapOrderRow(o: any): Order {
   return {
     id: o.id,
     customerId: o.customer_id,
@@ -859,6 +919,18 @@ function mapOrderRow(o: any): Order {
           }
         : undefined,
     supportNotes: undefined, // filled later
+    commissionUsd: o.commission_usd != null ? Number(o.commission_usd) : undefined,
+    riderEarningUsd: o.rider_earning_usd != null ? Number(o.rider_earning_usd) : undefined,
+    vatUsd: o.vat_usd != null ? Number(o.vat_usd) : undefined,
+    deliveryLat: o.delivery_lat ?? undefined,
+    deliveryLng: o.delivery_lng ?? undefined,
+    cancelReason: o.cancel_reason ?? undefined,
+    cancelledBy: o.cancelled_by ?? undefined,
+    refundFlag: !!o.refund_flag,
+    refundNote: o.refund_note ?? undefined,
+    prepMinutes: o.prep_minutes ?? undefined,
+    acceptedAt: o.accepted_at ? new Date(o.accepted_at).getTime() : undefined,
+    deliveredAt: o.delivered_at ? new Date(o.delivered_at).getTime() : undefined,
   };
 }
 function mapOrderItem(i: any): OrderItem {
@@ -956,7 +1028,7 @@ export async function getRiderState(riderId: string): Promise<RiderState> {
       items: active.items.map((i) => ({ name: i.name, quantity: i.quantity, imageUrl: i.imageUrl })),
       totalUsd: active.totalUsd,
       paymentMethod: active.paymentMethod,
-      earningsUsd: round2(active.deliveryFeeUsd * 0.7),
+      earningsUsd: estimateEarningsUsd(active),
     };
   }
   let status: RiderStatus = rider?.status ?? "offline";

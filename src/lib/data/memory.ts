@@ -1,3 +1,4 @@
+import { DEFAULT_FEES, DEFAULT_ZONES, computeBreakdown, zoneFee } from "../fees";
 import {
   MenuItem,
   Order,
@@ -122,7 +123,8 @@ export function createOrder(params: {
     throw new Error("invalid_item");
   });
   const subtotal = items.reduce((sum, it) => sum + it.unitPriceUsd * it.quantity, 0);
-  const deliveryFee = params.restaurantId ? 2.5 : 3; // simple heuristic
+  const deliveryFee = zoneFee(DEFAULT_ZONES, params.zone ?? PILOT_ZONE) ?? DEFAULT_ZONES[0].deliveryFeeUsd;
+  const bd = computeBreakdown(subtotal, deliveryFee, DEFAULT_FEES);
   const pin = generatePin(4);
   const now = Date.now();
   const order: Order = {
@@ -144,6 +146,9 @@ export function createOrder(params: {
     createdAt: now,
     updatedAt: now,
     supportNotes: [],
+    commissionUsd: bd.commissionUsd,
+    riderEarningUsd: bd.riderEarningUsd,
+    vatUsd: bd.vatUsd,
   };
   db.orders.unshift(order);
   if (!params.restaurantId) buildOfferQueueForOrder(order);
@@ -303,7 +308,7 @@ function round2(n: number) {
 
 function estimateEarningsUsd(order: Order): number {
   // naive split: 70% of delivery fee to rider
-  return round2(order.deliveryFeeUsd * 0.7);
+  return order.riderEarningUsd ?? round2((order.deliveryFeeUsd * DEFAULT_FEES.riderSharePct) / 100);
 }
 
 function haversineKm(

@@ -1,5 +1,5 @@
 /* Apporte Service Worker */
-const CACHE_STATIC = "apporte-static-v3";
+const CACHE_STATIC = "apporte-static-v4";
 const OFFLINE_URL = "/offline";
 const CACHE_ASSETS = [OFFLINE_URL, "/manifest.webmanifest", "/logo/apporte-symbol.svg"];
 
@@ -35,6 +35,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Only same-origin requests are handled (map tiles, Supabase, etc. go straight to the network)
+  if (url.origin !== self.location.origin) return;
   // Never cache API calls
   if (url.pathname.startsWith("/api/")) {
     return; // default network
@@ -81,3 +83,53 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+
+/* ---- Web push (new order, new offer, order status) ---- */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "Apporte", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Apporte";
+  const options = {
+    body: data.body || "",
+    icon: "/logo/apporte-app-icon-192.png",
+    badge: "/logo/apporte-app-icon-48.png",
+    tag: data.tag || undefined,
+    renotify: !!data.tag,
+    data: { url: data.url || "/" },
+    vibrate: [120, 60, 120],
+  };
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // When the app is open and focused, the in-app notification is enough
+      const focused = wins.find((w) => w.focused && w.visibilityState === "visible");
+      if (focused) {
+        focused.postMessage({ type: "push", payload: data });
+        return;
+      }
+      await self.registration.showNotification(title, options);
+    })(),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const w of wins) {
+        if ("focus" in w) {
+          await w.focus();
+          if ("navigate" in w) await w.navigate(target).catch(() => undefined);
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

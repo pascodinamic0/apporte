@@ -1,15 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Banknote, Check, Lock, MapPin, Smartphone } from "lucide-react";
+import { Banknote, Check, Home, Lock, MapPin, Map as MapIcon, Smartphone, Store } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { SafeImage } from "@/src/components/SafeImage";
 import { useCartStore } from "@/src/store/cart";
 import { cn, formatPriceUSD } from "@/src/lib/utils";
 import { formatDrcPhone, normalizeDrcPhone } from "@/src/lib/phone";
 import type { UserRole } from "@/src/lib/types";
+import type { SavedAddress } from "@/src/lib/data/ops";
+import { vatIncluded } from "@/src/lib/fees";
+import type { Pin } from "@/src/components/MapPicker";
+
+const MapPicker = dynamic(() => import("@/src/components/MapPicker").then((m) => m.MapPicker), {
+  ssr: false,
+  loading: () => <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />,
+});
 
 type Upsell = { id: string; name: string; priceUsd: number; imageUrl?: string };
 
@@ -17,7 +26,10 @@ const ORDER_ERRORS: Record<string, string> = {
   invalid_phone: "Numéro invalide. Exemple : +243 81 234 5678.",
   invalid_address: "Indique une adresse de livraison plus précise (5 caractères minimum).",
   invalid_address_notes: "Les indications sont trop longues (300 caractères maximum).",
-  zone_not_served: "Nous livrons uniquement à Gombe pour l’instant.",
+  zone_not_served: "Cette zone n’est pas encore desservie.",
+  restaurant_closed: "Ce restaurant est fermé ou en pause. Réessaie plus tard ou choisis un autre restaurant.",
+  invalid_restaurant: "Ce restaurant n’est plus disponible.",
+  invalid_pin: "Le repère sur la carte doit être à Kinshasa.",
   payment_method_unavailable: "Ce moyen de paiement n’est pas encore disponible. Choisis le cash à la livraison.",
   invalid_payment_method: "Moyen de paiement invalide. Choisis le cash à la livraison.",
   missing_items: "Ton panier est vide.",
@@ -31,7 +43,23 @@ const ORDER_ERRORS: Record<string, string> = {
 
 const PHONE_KEY = "apporte_checkout_phone";
 
-export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserRole | null }) {
+type OpenState = Record<string, { open: boolean; name: string; label: string; detail?: string }>;
+
+export function CheckoutClient({
+  upsell,
+  role,
+  zones,
+  vatPct,
+  addresses,
+  openState,
+}: {
+  upsell: Upsell[];
+  role: UserRole | null;
+  zones: { name: string; fee: number }[];
+  vatPct: number;
+  addresses: SavedAddress[];
+  openState: OpenState;
+}) {
   const router = useRouter();
   const { items, restaurantId, addItem, clear } = useCartStore();
   const [hydrated, setHydrated] = useState(false);
@@ -40,6 +68,22 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
   const [phone, setPhone] = useState("");
   const [touched, setTouched] = useState<{ phone?: boolean; address?: boolean }>({});
   const [placing, setPlacing] = useState(false);
+  const [zone, setZone] = useState(zones[0]?.name ?? "Gombe");
+  const [pin, setPin] = useState<Pin | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveNew, setSaveNew] = useState(false);
+  const [saveLabel, setSaveLabel] = useState("Maison");
+
+  function applySaved(a: SavedAddress) {
+    setSavedId(a.id);
+    setAddress(a.address);
+    setAddressNotes(a.notes || "");
+    if (zones.some((z) => z.name === a.zone)) setZone(a.zone);
+    setPin(a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null);
+    setShowMap(a.lat != null);
+    setSaveNew(false);
+  }
 
   useEffect(() => {
     // Hydrate client-only state (persisted cart + saved phone) after mount.
@@ -49,14 +93,20 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
       const saved = localStorage.getItem(PHONE_KEY);
       if (saved) setPhone(saved);
     } catch {}
+    const def = addresses.find((a) => a.isDefault) ?? addresses[0];
+    if (def) applySaved(def);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const subtotal = items.reduce((s, i) => s + i.unitPriceUsd * i.quantity, 0);
-  const deliveryFee = restaurantId ? 2.5 : 3;
-  const total = subtotal + deliveryFee;
+  const deliveryFee = zones.find((z) => z.name === zone)?.fee ?? zones[0]?.fee ?? 0;
+  const total = Math.round((subtotal + deliveryFee) * 100) / 100;
+  const vat = vatIncluded(total, vatPct);
+  const rest = restaurantId ? openState[restaurantId] : undefined;
+  const restClosed = !!restaurantId && (!rest || !rest.open);
   const phoneOk = normalizeDrcPhone(phone) !== null;
   const addressOk = address.trim().length >= 5;
-  const canOrder = role === "customer";
+  const canOrder = role === "customer" && zones.length > 0;
 
   async function placeOrder(e?: React.FormEvent<HTMLFormElement>) {
     e?.preventDefault();
@@ -92,8 +142,9 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
           address: addressV,
           addressNotes: notesV || undefined,
           customerPhone: normalizedPhone,
-          zone: "Gombe",
+          zone,
           paymentMethod: "Cash on delivery",
+          ...(pin ? { deliveryLat: pin.lat, deliveryLng: pin.lng } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -104,6 +155,13 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
       try {
         localStorage.setItem(PHONE_KEY, formatDrcPhone(normalizedPhone));
       } catch {}
+      if (saveNew && !savedId) {
+        await fetch("/api/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: saveLabel.trim() || "Adresse", address: addressV, notes: notesV || null, zone, lat: pin?.lat ?? null, lng: pin?.lng ?? null, isDefault: addresses.length === 0 }),
+        }).catch(() => null);
+      }
       clear();
       toast.success("Commande envoyée au restaurant !");
       router.replace(`/order/${data.order.id}`);
@@ -161,10 +219,47 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
           <section className="card-elevated border border-gray-200 bg-white p-4 sm:p-5">
             <h2 className="flex items-center gap-2 font-semibold"><MapPin className="h-5 w-5 text-emerald-700" aria-hidden /> Livraison</h2>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
-              <Check className="h-4 w-4" aria-hidden /> Zone : Gombe
-            </div>
-            <p className="mt-1 text-xs text-gray-500">Nous livrons uniquement à Gombe pour l’instant.</p>
+            {addresses.length > 0 && (
+              <div className="mt-3" data-testid="saved-addresses">
+                <div className="mb-2 text-sm font-medium">Mes adresses</div>
+                <div className="flex flex-wrap gap-2">
+                  {addresses.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => applySaved(a)}
+                      aria-pressed={savedId === a.id}
+                      className={cn("inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm", savedId === a.id ? "border-emerald-700 bg-emerald-50 font-semibold text-emerald-800" : "border-gray-200 bg-white text-gray-700")}
+                    >
+                      <Home className="h-4 w-4" aria-hidden /> {a.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => { setSavedId(null); setAddress(""); setAddressNotes(""); setPin(null); }}
+                    aria-pressed={savedId === null}
+                    className={cn("inline-flex h-10 items-center rounded-full border px-3.5 text-sm", savedId === null ? "border-emerald-700 bg-emerald-50 font-semibold text-emerald-800" : "border-dashed border-gray-300 text-gray-600")}
+                  >
+                    + Nouvelle adresse
+                  </button>
+                </div>
+              </div>
+            )}
+            {zones.length > 1 ? (
+              <div className="mt-4 grid gap-1.5">
+                <label htmlFor="zone" className="text-sm font-medium">Commune</label>
+                <select id="zone" value={zone} onChange={(e) => setZone(e.target.value)} className="h-12 rounded-xl border border-gray-300 bg-white px-3 text-base">
+                  {zones.map((z) => <option key={z.name} value={z.name}>{z.name} · livraison {formatPriceUSD(z.fee)}</option>)}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
+                  <Check className="h-4 w-4" aria-hidden /> Zone : {zone} · livraison {formatPriceUSD(deliveryFee)}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Nous livrons uniquement à {zone} pour l’instant.</p>
+              </>
+            )}
             <div className="mt-4 grid gap-4">
               <div className="grid gap-1.5">
                 <label htmlFor="address" className="text-sm font-medium">Adresse de livraison <span className="text-red-600">*</span></label>
@@ -195,6 +290,33 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
                   onChange={(e) => setAddressNotes(e.target.value)}
                 />
               </div>
+              <div className="grid gap-2">
+                {showMap ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Repère sur la carte <span className="font-normal text-gray-500">(aide le livreur)</span></span>
+                      {pin && <button type="button" className="text-gray-500 underline" onClick={() => setPin(null)}>Effacer</button>}
+                    </div>
+                    <MapPicker value={pin} onChange={setPin} />
+                    <p className="text-xs text-gray-500">{pin ? "Repère placé. Tu peux le déplacer." : "Touchez la carte ou utilisez « Ma position »."}</p>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setShowMap(true)} className="inline-flex h-11 w-fit items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50" data-testid="open-map">
+                    <MapIcon className="h-4 w-4 text-emerald-700" aria-hidden /> Placer un repère sur la carte
+                  </button>
+                )}
+              </div>
+              {role === "customer" && !savedId && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 p-3">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={saveNew} onChange={(e) => setSaveNew(e.target.checked)} className="h-5 w-5 accent-emerald-700" data-testid="save-address" />
+                    Enregistrer cette adresse
+                  </label>
+                  {saveNew && (
+                    <input aria-label="Nom de l’adresse" value={saveLabel} maxLength={30} onChange={(e) => setSaveLabel(e.target.value)} className="h-10 w-40 rounded-lg border border-gray-300 bg-white px-3 text-sm" placeholder="Maison, Bureau…" />
+                  )}
+                </div>
+              )}
               <div className="grid gap-1.5">
                 <label htmlFor="phone" className="text-sm font-medium">Téléphone <span className="text-red-600">*</span></label>
                 <div className="relative">
@@ -283,12 +405,22 @@ export function CheckoutClient({ upsell, role }: { upsell: Upsell[]; role: UserR
           </ul>
           <div className="mt-3 grid gap-1.5 border-t border-gray-100 pt-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-600">Sous-total</span><span className="tabular-nums">{formatPriceUSD(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Livraison (Gombe)</span><span className="tabular-nums">{formatPriceUSD(deliveryFee)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Livraison ({zone})</span><span className="tabular-nums" data-testid="checkout-fee">{formatPriceUSD(deliveryFee)}</span></div>
             <div className="mt-1 flex justify-between text-base font-bold"><span>Total</span><span className="tabular-nums text-emerald-800" data-testid="checkout-total">{formatPriceUSD(total)}</span></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>dont TVA ({vatPct} %)</span><span className="tabular-nums" data-testid="checkout-vat">{formatPriceUSD(vat)}</span></div>
             <div className="text-xs text-gray-500">À payer en cash au livreur.</div>
           </div>
+          {restClosed && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="checkout-closed">
+              <Store className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <div>
+                <div className="font-semibold">{rest?.name ?? "Ce restaurant"} : {rest?.label?.toLowerCase() ?? "fermé"}</div>
+                <div>{rest?.detail ?? "Il ne prend pas de commandes pour le moment."}</div>
+              </div>
+            </div>
+          )}
           {canOrder ? (
-            <Button type="submit" size="lg" className="mt-4 w-full rounded-xl" disabled={placing}>
+            <Button type="submit" size="lg" className="mt-4 w-full rounded-xl" disabled={placing || restClosed}>
               {placing ? "Envoi…" : `Commander · ${formatPriceUSD(total)}`}
             </Button>
           ) : (

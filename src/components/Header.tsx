@@ -9,7 +9,7 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/70 backdrop-blur">
       <div
-        className="mx-auto max-w-5xl px-4 flex items-center justify-between gap-4"
+        className={`mx-auto ${role === "admin" || role === "merchant" ? "max-w-7xl" : "max-w-5xl"} px-4 flex items-center justify-between gap-4`}
         style={{ paddingTop: "max(var(--safe-top),12px)", paddingBottom: "12px", minHeight: "56px" }}
       >
         <Link href={role === "merchant" ? "/merchant" : role === "rider" ? "/rider" : role === "admin" ? "/admin" : "/"} className="flex shrink-0 items-center gap-2 text-emerald-800" aria-label="Apporte, accueil">

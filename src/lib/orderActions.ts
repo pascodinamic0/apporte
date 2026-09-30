@@ -6,7 +6,11 @@ import { checkMerchantAction, type GuardResult, type MerchantAction } from "./or
  * Advance an order as the signed-in merchant. The only entry point for
  * merchant transitions (API route and server action both call this).
  */
-export async function advanceOrderAsMerchant(orderId: unknown, action: unknown): Promise<GuardResult> {
+export async function advanceOrderAsMerchant(
+  orderId: unknown,
+  action: unknown,
+  opts: { prepMinutes?: number } = {},
+): Promise<GuardResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, status: 401, error: "unauthorized" };
   if (typeof orderId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(orderId)) {
@@ -19,7 +23,7 @@ export async function advanceOrderAsMerchant(orderId: unknown, action: unknown):
   if (!res.ok) return res;
   switch (action as MerchantAction) {
     case "merchant_accept":
-      await merchantAccept(orderId);
+      await merchantAccept(orderId, opts.prepMinutes);
       break;
     case "merchant_preparing":
       await merchantSetPreparing(orderId);

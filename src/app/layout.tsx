@@ -9,6 +9,8 @@ import { CartBar } from "@/src/components/CartBar";
 import { getCurrentUser } from "@/src/lib/auth";
 import { Splash } from "@/src/components/Splash";
 import { PageTransition } from "@/src/components/PageTransition";
+import { LiveNotifier } from "@/src/components/LiveNotifier";
+import { Onboarding } from "@/src/components/Onboarding";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,18 +66,23 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   const isCustomer = !user || user.role === "customer";
+  const wide = user?.role === "admin" || user?.role === "merchant";
   return (
     <html lang="fr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-dvh flex flex-col bg-white text-gray-900">
         <Splash />
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-5xl px-4 pt-4 pb-[max(132px,calc(104px+env(safe-area-inset-bottom)))]">
+        <main className={`flex-1 mx-auto w-full ${wide ? "max-w-7xl" : "max-w-5xl"} px-4 pt-4 pb-[max(132px,calc(104px+env(safe-area-inset-bottom)))]`}>
           <PageTransition>{children}</PageTransition>
         </main>
         {isCustomer && <CartBar />}
         {isCustomer && <BottomNav />}
         {!isCustomer && <RoleBottomNav role={(user?.role as any) ?? "merchant"} />}
         <Providers />
+        {user && (
+          <LiveNotifier role={user.role} userId={user.id} merchantId={user.merchantId} riderId={user.riderId} />
+        )}
+        {isCustomer && <Onboarding signedIn={!!user} />}
       </body>
     </html>
   );

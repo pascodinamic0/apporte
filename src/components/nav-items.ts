@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, Bike, ClipboardList, History, Home, LifeBuoy, Package, ShoppingCart, Store, User, Utensils, Users } from "lucide-react";
+import { BarChart3, Bike, CalendarClock, ClipboardList, Home, LifeBuoy, Package, Settings, ShoppingCart, Store, User, Utensils, Users, Wallet } from "lucide-react";
 import type { UserRole } from "@/src/lib/types";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
@@ -11,13 +11,14 @@ export function navItemsForRole(role: UserRole, signedIn: boolean): NavItem[] {
       return [
         { href: "/merchant", label: "Commandes", icon: ClipboardList, exact: true },
         { href: "/merchant/menu", label: "Menu", icon: Utensils },
+        { href: "/merchant/horaires", label: "Horaires", icon: CalendarClock },
         { href: "/merchant/stats", label: "Stats", icon: BarChart3 },
         account,
       ];
     case "rider":
       return [
         { href: "/rider", label: "Courses", icon: Bike, exact: true },
-        { href: "/rider/historique", label: "Historique", icon: History },
+        { href: "/rider/gains", label: "Gains", icon: Wallet },
         { href: "/support", label: "Support", icon: LifeBuoy },
         account,
       ];
@@ -25,9 +26,9 @@ export function navItemsForRole(role: UserRole, signedIn: boolean): NavItem[] {
       return [
         { href: "/admin", label: "Vue d’ensemble", icon: Home, exact: true },
         { href: "/admin/commandes", label: "Commandes", icon: ClipboardList },
-        { href: "/admin/marchands", label: "Marchands", icon: Store },
+        { href: "/admin/marchands", label: "Restaurants", icon: Store },
         { href: "/admin/livreurs", label: "Livreurs", icon: Users },
-        account,
+        { href: "/admin/reglages", label: "Réglages", icon: Settings },
       ];
     default:
       return [
