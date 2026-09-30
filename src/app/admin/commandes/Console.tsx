@@ -129,7 +129,7 @@ export function AdminConsole() {
               <button type="button" onClick={() => setOpen(o.id === open ? null : o.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50" data-order-id={o.id}>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold">#{o.id.slice(-6).toUpperCase()} · {o.restaurantId ? names.get(o.restaurantId) || "Restaurant" : "Trouvailles"}</div>
-                  <div className="truncate text-xs text-gray-600">{formatDateFr(o.createdAt)} · {o.zone} · {o.address}</div>
+                  <div className="truncate text-xs text-gray-600">{formatDateFr(o.createdAt)} · {o.zone} · {o.address}{o.status === "cancelled" && o.cancelReason ? ` · ${o.cancelReason}` : ""}</div>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="text-sm font-bold tabular-nums">{formatPriceUSD(o.totalUsd)}</div>
@@ -145,9 +145,9 @@ export function AdminConsole() {
                         <li key={it.id} className="flex justify-between gap-3 py-0.5"><span className="truncate">{it.quantity}× {it.name}</span><span className="tabular-nums text-gray-600">{formatPriceUSD(it.unitPriceUsd * it.quantity)}</span></li>
                       ))}
                     </ul>
-                    <p className="mt-2 text-xs text-gray-600">
+                    <p className="mt-2 text-xs text-gray-600" data-testid={o.cancelReason ? "admin-cancel-reason" : undefined}>
                       {o.customerPhone || "Pas de téléphone"} · livreur {o.riderId ? riderName.get(o.riderId) || "assigné" : "aucun"}
-                      {o.cancelReason ? ` · ${o.cancelReason}` : ""}
+                      {o.cancelReason ? ` · Motif : ${o.cancelReason}` : ""}
                     </p>
                     {o.supportNotes && o.supportNotes.length > 0 && (
                       <ul className="mt-2 space-y-1 text-xs text-gray-700">

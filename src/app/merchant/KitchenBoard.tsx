@@ -13,6 +13,7 @@ import { Button } from "@/src/components/ui/button";
 import { cn, formatPriceUSD, statusLabelFr } from "@/src/lib/utils";
 import type { Restaurant, OrderStatus } from "@/src/lib/types";
 import type { BoardOrder } from "./board-types";
+import { DeclineDialog } from "./DeclineDialog";
 
 type ColKey = "new" | "kitchen" | "ready" | "history";
 const COLS: { key: ColKey; label: string; short: string; statuses: OrderStatus[]; empty: string; icon: typeof Inbox }[] = [
@@ -22,7 +23,6 @@ const COLS: { key: ColKey; label: string; short: string; statuses: OrderStatus[]
   { key: "history", label: "Historique", short: "Historique", statuses: ["picked_up", "delivering", "delivered", "cancelled"], empty: "Aucune commande terminée.", icon: Clock },
 ];
 const PREP_CHOICES = [10, 15, 20, 30, 45];
-const REJECT_REASONS = ["Rupture de stock", "Trop de commandes", "Fermeture imminente", "Autre"];
 const CHIME_EVERY_MS = 6000;
 
 function shortId(id: string) {
@@ -53,6 +53,8 @@ export function KitchenBoard({
   const [restaurant, setRestaurant] = useState(initialRestaurant);
   const [tab, setTab] = useState<ColKey>(initialTab ?? "new");
   const [selected, setSelected] = useState<string | null>(null);
+  const [declineId, setDeclineId] = useState<string | null>(null);
+  const [declineBusy, setDeclineBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [acked, setAcked] = useState<Set<string>>(() => new Set());
   const [soundWanted, setSoundWanted] = useState(false);
@@ -193,7 +195,14 @@ export function KitchenBoard({
               ? "Session expirée. Reconnecte-toi."
               : "Action impossible. Réessaie.",
         );
-      } else toast.success(success);
+      } else {
+        const names = Array.isArray(data.unavailable) ? data.unavailable.filter((n: unknown) => typeof n === "string" && n) : [];
+        toast.success(
+          names.length
+            ? `${success} ${names.join(", ")} ${names.length > 1 ? "ne sont plus proposés" : "n’est plus proposé"}.`
+            : success,
+        );
+      }
     } catch {
       toast.error("Connexion perdue. Réessaie.");
     }
@@ -216,6 +225,15 @@ export function KitchenBoard({
     const data = await res.json();
     setRestaurant(data.restaurant);
     toast.success(v ? "Restaurant ouvert aux commandes" : "Commandes en pause");
+  }
+
+  async function confirmDecline(reason: string) {
+    if (!declineId || declineBusy) return;
+    setDeclineBusy(true);
+    await act(declineId, { action: "merchant_reject", reason }, "Commande refusée. Le client est prévenu.");
+    setDeclineBusy(false);
+    setDeclineId(null);
+    setSelected((cur) => (cur === declineId ? null : cur));
   }
 
   const sel = orders.find((o) => o.id === selected) || null;
@@ -345,7 +363,7 @@ export function KitchenBoard({
             ) : (
               <div className="flex flex-col gap-3">
                 {byCol[c.key].map((o) => (
-                  <OrderCard key={o.id} o={o} now={now} unread={c.key === "new" && !acked.has(o.id)} onOpen={() => setSelected(o.id)} onAct={act} />
+                  <OrderCard key={o.id} o={o} now={now} unread={c.key === "new" && !acked.has(o.id)} onOpen={() => setSelected(o.id)} onDecline={() => setDeclineId(o.id)} onAct={act} />
                 ))}
               </div>
             )}
@@ -362,7 +380,7 @@ export function KitchenBoard({
                 <button key={o.id} type="button" onClick={() => setSelected(o.id)} data-order-id={o.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left hover:border-gray-300">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">#{shortId(o.id)} · {formatPriceUSD(o.totalUsd)}</div>
-                    <div className="truncate text-xs text-gray-500">{timeFr(o.updatedAt)} · {o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</div>
+                    <div className="truncate text-xs text-gray-500">{timeFr(o.updatedAt)} · {o.status === "cancelled" && o.cancelReason ? o.cancelReason : o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</div>
                   </div>
                   <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", o.status === "cancelled" ? "bg-red-50 text-red-700" : "bg-gray-100 text-gray-700")}>{statusLabelFr(o.status)}</span>
                 </button>
@@ -372,7 +390,8 @@ export function KitchenBoard({
         </section>
       </div>
 
-      <OrderDetail order={sel} now={now} onClose={() => setSelected(null)} onAct={act} />
+      <OrderDetail order={sel} now={now} onClose={() => setSelected(null)} onDecline={() => sel && setDeclineId(sel.id)} onAct={act} />
+      <DeclineDialog open={!!declineId} busy={declineBusy} onClose={() => !declineBusy && setDeclineId(null)} onConfirm={(reason) => void confirmDecline(reason)} />
     </div>
   );
 }
@@ -382,12 +401,14 @@ function OrderCard({
   now,
   unread,
   onOpen,
+  onDecline,
   onAct,
 }: {
   o: BoardOrder;
   now: number;
   unread: boolean;
   onOpen: () => void;
+  onDecline: () => void;
   onAct: (id: string, body: Record<string, unknown>, success: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -446,9 +467,12 @@ function OrderCard({
         )}
       </button>
       {o.status === "placed" && (
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-          <Button size="sm" disabled={busy} data-action="merchant_accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: 15 }, "Commande acceptée (15 min)")}>Accepter · 15 min</Button>
-          <Button size="sm" variant="outline" onClick={onOpen}>Détails</Button>
+        <div className="mt-3 grid gap-2">
+          <Button size="sm" className="w-full" disabled={busy} data-action="merchant_accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: 15 }, "Commande acceptée (15 min)")}>Accepter · 15 min</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" data-testid="open-decline" data-action="open-reject" onClick={onDecline}>Refuser</Button>
+            <Button size="sm" variant="outline" onClick={onOpen}>Détails</Button>
+          </div>
         </div>
       )}
       {o.status === "restaurant_accepted" && (
@@ -465,19 +489,18 @@ function OrderDetail({
   order,
   now,
   onClose,
+  onDecline,
   onAct,
 }: {
   order: BoardOrder | null;
   now: number;
   onClose: () => void;
+  onDecline: () => void;
   onAct: (id: string, body: Record<string, unknown>, success: string) => Promise<void>;
 }) {
   const [prep, setPrep] = useState(15);
   const [busy, setBusy] = useState(false);
-  const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState(REJECT_REASONS[0]);
   useEffect(() => {
-    setRejecting(false);
     setPrep(15);
   }, [order?.id]);
   if (!order) return <Sheet open={false} onClose={onClose} title="">{null}</Sheet>;
@@ -491,20 +514,6 @@ function OrderDetail({
   const payout = o.commissionUsd != null ? o.subtotalUsd - o.commissionUsd : undefined;
   const footer =
     o.status === "placed" ? (
-      rejecting ? (
-        <div className="space-y-3 pb-1">
-          <p className="text-sm font-semibold">Motif du refus</p>
-          <div className="flex flex-wrap gap-2">
-            {REJECT_REASONS.map((r) => (
-              <button key={r} type="button" onClick={() => setReason(r)} className={cn("h-9 rounded-full border px-3 text-sm", reason === r ? "border-red-600 bg-red-50 font-semibold text-red-700" : "border-gray-200")}>{r}</button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setRejecting(false)}>Retour</Button>
-            <Button variant="destructive" disabled={busy} data-action="merchant_reject" onClick={() => run({ action: "merchant_reject", reason }, "Commande refusée. Le client est prévenu.", true)}>Refuser</Button>
-          </div>
-        </div>
-      ) : (
         <div className="space-y-3 pb-1">
           <div>
             <p className="mb-2 text-sm font-semibold">Temps de préparation</p>
@@ -515,11 +524,10 @@ function OrderDetail({
             </div>
           </div>
           <div className="grid grid-cols-[auto_1fr] gap-2">
-            <Button variant="outline" onClick={() => setRejecting(true)} data-action="open-reject">Refuser</Button>
+            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" onClick={onDecline} data-action="open-reject" data-testid="open-decline">Refuser</Button>
             <Button disabled={busy} data-action="detail-accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: prep }, `Commande acceptée (${prep} min)`)}>Accepter · {prep} min</Button>
           </div>
         </div>
-      )
     ) : o.status === "restaurant_accepted" ? (
       <Button className="mb-1 w-full" disabled={busy} onClick={() => run({ action: "merchant_preparing" }, "Préparation lancée")}>Lancer la préparation</Button>
     ) : o.status === "preparing" ? (
