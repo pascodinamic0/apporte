@@ -55,3 +55,21 @@ export const RIDER_ACTIVE_STATUSES: OrderStatus[] = [
   "picked_up",
   "delivering",
 ];
+
+/**
+ * Decline is only allowed for the owning merchant, and only while the order
+ * is still "nouvelle" (placed). Later steps cannot be refused.
+ */
+export function checkMerchantDecline(
+  user: Pick<User, "role" | "merchantId"> | null | undefined,
+  order: Pick<Order, "restaurantId" | "status"> | null | undefined,
+): GuardResult {
+  if (!user) return { ok: false, status: 401, error: "unauthorized" };
+  if (user.role !== "merchant" || !user.merchantId) return { ok: false, status: 403, error: "forbidden" };
+  if (!order) return { ok: false, status: 404, error: "not_found" };
+  if (!order.restaurantId || order.restaurantId !== user.merchantId) {
+    return { ok: false, status: 403, error: "forbidden" };
+  }
+  if (order.status !== "placed") return { ok: false, status: 409, error: "invalid_state" };
+  return { ok: true };
+}

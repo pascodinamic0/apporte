@@ -140,6 +140,8 @@ export function OrderClient({ orderId }: { orderId: string }) {
   const idx = activeSteps.indexOf(order.status);
   const h = hero(order.status, isSmart, order.prepMinutes);
   const cancelled = order.status === "cancelled";
+  const refusedByMerchant = cancelled && String(order.cancelledBy || "").startsWith("merchant:");
+  const statusTitle = refusedByMerchant ? "Commande refusée" : h.title;
   const canCancel = order.pin && (order.status === "placed" || (isSmart && order.status === "rider_searching" && !order.riderId));
   const isOwner = !!order.pin;
   const hasPin = order.deliveryLat != null && order.deliveryLng != null;
@@ -155,9 +157,13 @@ export function OrderClient({ orderId }: { orderId: string }) {
               </span>
               <div className="min-w-0">
                 <div className={cn("text-xs font-semibold uppercase tracking-wide", cancelled ? "text-red-700" : "text-emerald-100")}>Commande #{order.id.slice(-6).toUpperCase()}</div>
-                <h1 className={cn("text-2xl font-extrabold tracking-tight", cancelled && "text-red-900")} data-testid="order-status-title">{h.title}</h1>
+                <h1 className={cn("text-2xl font-extrabold tracking-tight", cancelled && "text-red-900")} data-testid="order-status-title">{statusTitle}</h1>
                 {cancelled ? (
-                  <p className="mt-0.5 text-sm text-red-800">{order.cancelReason ? `Motif : ${order.cancelReason}` : "Cette commande a été annulée."}</p>
+                  <p className="mt-0.5 text-sm text-red-800" data-testid={refusedByMerchant ? "decline-reason" : "cancel-reason"}>
+                    {refusedByMerchant
+                      ? (order.cancelReason ? `Le restaurant a refusé ta commande. Motif : ${order.cancelReason}` : "Le restaurant a refusé ta commande.")
+                      : (order.cancelReason ? `Motif : ${order.cancelReason}` : "Cette commande a été annulée.")}
+                  </p>
                 ) : (
                   <p className="mt-0.5 text-sm text-emerald-50">{h.text}</p>
                 )}

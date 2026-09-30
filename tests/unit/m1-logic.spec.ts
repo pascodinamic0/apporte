@@ -4,7 +4,7 @@
  * Run: npm run test:unit
  */
 import { test, expect } from "@playwright/test";
-import { checkMerchantAction } from "../../src/lib/orderGuard";
+import { checkMerchantAction, checkMerchantDecline } from "../../src/lib/orderGuard";
 import { normalizeDrcPhone, formatDrcPhone } from "../../src/lib/phone";
 import { validateCreateOrder } from "../../src/lib/validation";
 import { parseMenuPrice } from "../../src/lib/price";
@@ -43,6 +43,21 @@ test.describe("checkMerchantAction (merchant server action + PATCH guard)", () =
     expect(checkMerchantAction(merchant, placedKfc, "merchant_accept")).toEqual({ ok: true });
     expect(checkMerchantAction(merchant, { ...placedKfc, status: "restaurant_accepted" }, "merchant_preparing")).toEqual({ ok: true });
     expect(checkMerchantAction(merchant, { ...placedKfc, status: "preparing" }, "merchant_ready")).toEqual({ ok: true });
+  });
+});
+
+test.describe("checkMerchantDecline", () => {
+  test("only the owning merchant can refuse a new order", () => {
+    expect(checkMerchantDecline(null, placedKfc)).toMatchObject({ status: 401 });
+    for (const role of ["customer", "rider", "admin"] as const) {
+      expect(checkMerchantDecline({ role, merchantId: role === "admin" ? undefined : "rest_kfc_gombe" }, placedKfc)).toMatchObject({ status: 403 });
+    }
+    expect(checkMerchantDecline({ role: "merchant", merchantId: "rest_other" }, placedKfc)).toMatchObject({ status: 403 });
+    expect(checkMerchantDecline(merchant, null)).toMatchObject({ status: 404 });
+    expect(checkMerchantDecline(merchant, { ...placedKfc, status: "preparing" })).toMatchObject({ status: 409, error: "invalid_state" });
+    expect(checkMerchantDecline(merchant, { ...placedKfc, status: "restaurant_accepted" })).toMatchObject({ status: 409 });
+    expect(checkMerchantDecline(merchant, { ...placedKfc, status: "delivered" })).toMatchObject({ status: 409 });
+    expect(checkMerchantDecline(merchant, placedKfc)).toEqual({ ok: true });
   });
 });
 

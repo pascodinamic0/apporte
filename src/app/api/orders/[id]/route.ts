@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addSupportNote, getOrder, setOrderRating, updateOrderStatus } from "@/src/lib/data/db";
 import { advanceOrderAsMerchant } from "@/src/lib/orderActions";
-import { isMerchantAction } from "@/src/lib/orderGuard";
+import { checkMerchantDecline, isMerchantAction } from "@/src/lib/orderGuard";
+import { STOCKOUT_REASON } from "@/src/lib/decline";
 import { orderPatchSchema } from "@/src/lib/validation";
 import { getCurrentUser } from "@/src/lib/auth";
 import { getServiceClient } from "@/src/lib/supabase/server";
-import { cancelIfPlaced, cancelOrder, customerCanCancel, reassignRider, setRefundFlag } from "@/src/lib/data/ops";
+import { cancelIfPlaced, cancelOrder, customerCanCancel, markOrderedDishesUnavailable, reassignRider, setRefundFlag } from "@/src/lib/data/ops";
 
 export async function GET(
   _req: NextRequest,
@@ -99,10 +100,18 @@ export async function PATCH(
     if (!isAdmin) return forbidden();
     await updateOrderStatus(id, body.status);
   } else if (body.action === "merchant_reject") {
-    if (!isMerchant) return forbidden();
-    if (order.status !== "placed") return conflict("invalid_state");
+    const guard = checkMerchantDecline(user, order);
+    if (!guard.ok) {
+      if (guard.status === 409) return conflict("invalid_state");
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
+    }
     const ok = await cancelIfPlaced(id, `merchant:${user.id}`, body.reason);
     if (!ok) return conflict("invalid_state");
+    const unavailable = body.reason === STOCKOUT_REASON ? await markOrderedDishesUnavailable(order) : [];
+    const updated = await getOrder(id);
+    if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    const { pin, ...rest } = updated;
+    return NextResponse.json({ ok: true, order: rest, unavailable });
   } else if (body.action === "customer_cancel") {
     if (!isCustomer) return forbidden();
     if (!customerCanCancel(order)) return conflict("already_accepted");

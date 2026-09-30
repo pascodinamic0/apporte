@@ -376,6 +376,20 @@ export async function cancelIfPlaced(orderId: string, by: string, reason: string
   return true;
 }
 
+/** Pull every food dish on a refused order off the menu (stock-out). */
+export async function markOrderedDishesUnavailable(order: Pick<Order, "items">): Promise<string[]> {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const item of order.items) {
+    if (item.kind !== "food" || !item.menuItemId || seen.has(item.menuItemId)) continue;
+    seen.add(item.menuItemId);
+    if (!supabaseConfigured()) memory.toggleMenuItemAvailability(item.menuItemId, false);
+    else await updateMenuItem(item.menuItemId, { available: false });
+    names.push(item.name);
+  }
+  return names;
+}
+
 export async function reassignRider(orderId: string, riderId: string | null): Promise<void> {
   const supabase = requireDb();
   const order = await getOrder(orderId);
