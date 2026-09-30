@@ -65,6 +65,14 @@ export function RiderClient({ initial }: { initial: RiderState }) {
     } catch {}
   }, []);
 
+  // Keep the active job in sync even if realtime is down
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 6000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
   // Restore from the server whenever the app comes back (reload, lock screen, tab switch)
   useEffect(() => {
     const onVis = () => {
