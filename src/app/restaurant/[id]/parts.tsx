@@ -6,9 +6,16 @@ import { Button } from "@/src/components/ui/button";
 import { useCartStore } from "@/src/store/cart";
 import type { MenuItem } from "@/src/lib/types";
 
-export function AddToCartButton({ menuItem, restaurantId }: { menuItem: MenuItem; restaurantId: string }) {
+export function AddToCartButton({ menuItem, restaurantId, closed = false }: { menuItem: MenuItem; restaurantId: string; closed?: boolean }) {
   const add = useCartStore((s) => s.addItem);
   const [justAdded, setJustAdded] = useState(false);
+  if (closed) {
+    return (
+      <Button variant="outline" size="sm" disabled aria-disabled className="rounded-full">
+        Fermé
+      </Button>
+    );
+  }
   if (!menuItem.available) {
     return (
       <Button variant="outline" size="sm" disabled aria-disabled className="rounded-full">

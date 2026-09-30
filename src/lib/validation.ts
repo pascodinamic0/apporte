@@ -2,8 +2,10 @@ import { z } from "zod";
 import { normalizeDrcPhone } from "./phone";
 import type { OrderStatus } from "./types";
 
-/** Zones Apporte actually serves today. Checkout only offers these. */
+/** Zones Apporte serves by default. The live list (and fees) comes from the zones table, editable in admin. */
 export const SERVED_ZONES = ["Gombe"] as const;
+/** Kinshasa bounding box for map pins. */
+export const KINSHASA_BOUNDS = { minLat: -4.75, maxLat: -4.0, minLng: 15.0, maxLng: 15.75 };
 
 /** Payment methods that really work today (no online payment is taken yet). */
 export const ACTIVE_PAYMENT_METHODS = ["Cash on delivery"] as const;
@@ -46,7 +48,9 @@ export type CreateOrderInput = {
   items: { kind: "food" | "smart_find"; menuItemId?: string; productId?: string; quantity: number }[];
   address: string;
   addressNotes?: string;
-  zone: (typeof SERVED_ZONES)[number];
+  zone: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
   paymentMethod: (typeof ACTIVE_PAYMENT_METHODS)[number];
   customerPhone: string;
 };
@@ -102,9 +106,19 @@ export function validateCreateOrder(body: unknown): ValidationSuccess<CreateOrde
     addressNotes = b.addressNotes.trim() || undefined;
   }
 
+  // Zone must be a plain name; whether it is served (and its fee) is checked against the zones table.
   const zone = b.zone == null || b.zone === "" ? "Gombe" : b.zone;
-  if (typeof zone !== "string" || !(SERVED_ZONES as readonly string[]).includes(zone)) {
+  if (typeof zone !== "string" || !/^[\p{L} '’-]{2,40}$/u.test(zone)) {
     return { ok: false, error: "bad_request", reason: "zone_not_served", field: "zone" };
+  }
+
+  let deliveryLat: number | undefined;
+  let deliveryLng: number | undefined;
+  if (b.deliveryLat != null || b.deliveryLng != null) {
+    const pin = parsePin(b.deliveryLat, b.deliveryLng);
+    if (!pin) return { ok: false, error: "bad_request", reason: "invalid_pin", field: "deliveryLat" };
+    deliveryLat = pin.lat;
+    deliveryLng = pin.lng;
   }
 
   let restaurantId: string | undefined;
@@ -126,7 +140,9 @@ export function validateCreateOrder(body: unknown): ValidationSuccess<CreateOrde
       })),
       address,
       addressNotes,
-      zone: zone as CreateOrderInput["zone"],
+      zone,
+      deliveryLat,
+      deliveryLng,
       paymentMethod: pm as CreateOrderInput["paymentMethod"],
       customerPhone: phone,
     },
@@ -152,6 +168,12 @@ export const orderPatchSchema = z.discriminatedUnion("action", [
     rating: z.coerce.number().int().min(1).max(5),
     comment: z.string().trim().max(500).optional(),
   }),
+  z.object({ action: z.literal("merchant_accept_prep"), prepMinutes: z.coerce.number().int().min(5).max(90) }),
+  z.object({ action: z.literal("merchant_reject"), reason: z.string().trim().min(2).max(200) }),
+  z.object({ action: z.literal("customer_cancel"), reason: z.string().trim().max(200).optional() }),
+  z.object({ action: z.literal("admin_cancel"), reason: z.string().trim().min(2).max(200) }),
+  z.object({ action: z.literal("admin_reassign"), riderId: id.nullable() }),
+  z.object({ action: z.literal("admin_refund"), flag: z.boolean(), note: z.string().trim().max(300).optional() }),
   z.object({
     action: z.literal("support_note"),
     note: z.string().trim().min(1).max(500),
@@ -167,3 +189,106 @@ export const dispatchPostSchema = z.object({
 });
 
 export const riderStatusSchema = z.object({ status: z.enum(["offline", "online"]) });
+
+/** A map pin inside Kinshasa, rounded to ~1 m. */
+export function parsePin(latRaw: unknown, lngRaw: unknown): { lat: number; lng: number } | null {
+  const lat = typeof latRaw === "string" ? Number(latRaw) : latRaw;
+  const lng = typeof lngRaw === "string" ? Number(lngRaw) : lngRaw;
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const B = KINSHASA_BOUNDS;
+  if (lat < B.minLat || lat > B.maxLat || lng < B.minLng || lng > B.maxLng) return null;
+  return { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
+}
+
+const money = z.coerce.number().finite().min(0.1).max(500).transform((n) => Math.round(n * 100) / 100);
+const text = (min: number, max: number) => z.string().trim().min(min).max(max);
+const imageUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((u) => u === "" || u.startsWith("/images/") || /^https:\/\/[a-z0-9.-]+\.supabase\.co\/storage\/v1\/object\/public\//.test(u), "bad_image_url")
+  .optional()
+  .nullable();
+
+export const menuItemCreateSchema = z
+  .object({
+    name: text(2, 80),
+    description: z.string().trim().max(300).optional().nullable(),
+    priceUsd: money,
+    category: text(2, 30),
+    available: z.boolean().default(true),
+    imageUrl,
+  })
+  .strict();
+
+export const menuItemUpdateSchema = z
+  .object({
+    name: text(2, 80).optional(),
+    description: z.string().trim().max(300).optional().nullable(),
+    priceUsd: money.optional(),
+    category: text(2, 30).optional(),
+    available: z.boolean().optional(),
+    imageUrl,
+  })
+  .strict();
+
+export const restaurantOpenSchema = z
+  .object({
+    acceptingOrders: z.boolean().optional(),
+    hours: z.array(z.object({ open: z.string(), close: z.string(), closed: z.boolean() })).length(7).optional(),
+  })
+  .strict();
+
+export const restaurantAdminSchema = z
+  .object({
+    name: text(2, 60),
+    description: z.string().trim().max(300).optional().nullable(),
+    cuisine: text(2, 40),
+    zone: text(2, 40),
+    etaMinutes: z.coerce.number().int().min(5).max(120),
+    imageUrl,
+    latitude: z.coerce.number().min(KINSHASA_BOUNDS.minLat).max(KINSHASA_BOUNDS.maxLat),
+    longitude: z.coerce.number().min(KINSHASA_BOUNDS.minLng).max(KINSHASA_BOUNDS.maxLng),
+    commissionPct: z.coerce.number().min(0).max(100).optional().nullable(),
+    phone: z.string().trim().max(20).optional().nullable(),
+    suspended: z.boolean().optional(),
+  })
+  .strict();
+
+export const riderAdminSchema = z
+  .object({
+    name: text(2, 60),
+    phone: z.string().trim().max(20).optional().nullable(),
+    suspended: z.boolean().optional(),
+  })
+  .strict();
+
+export const zoneSchema = z
+  .object({
+    id: id.optional(),
+    name: z.string().trim().regex(/^[\p{L} '’-]{2,40}$/u),
+    deliveryFeeUsd: z.coerce.number().finite().min(0).max(20).transform((n) => Math.round(n * 100) / 100),
+    active: z.boolean(),
+  })
+  .strict();
+
+export const addressSchema = z
+  .object({
+    id: id.optional(),
+    label: text(1, 30),
+    address: text(5, 200),
+    notes: z.string().trim().max(300).optional().nullable(),
+    zone: z.string().trim().regex(/^[\p{L} '’-]{2,40}$/u).default("Gombe"),
+    lat: z.number().optional().nullable(),
+    lng: z.number().optional().nullable(),
+    isDefault: z.boolean().default(false),
+  })
+  .strict();
+
+export const CANCEL_REASONS = [
+  "Rupture de stock",
+  "Trop de commandes",
+  "Fermeture imminente",
+  "Adresse hors zone",
+  "Autre",
+] as const;

@@ -4,6 +4,8 @@ import { ChevronRight, ClipboardList, Info, LifeBuoy, Repeat, UserRound } from "
 import { getCurrentUser } from "@/src/lib/auth";
 import { listOrdersForCustomer } from "@/src/lib/data/db";
 import { LogoutButton } from "@/src/components/LogoutButton";
+import { PushToggle } from "@/src/components/PushToggle";
+import { listAddresses } from "@/src/lib/data/ops";
 import { cn, formatDateFr, formatPriceUSD, roleLabelFr, statusLabelFr } from "@/src/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +38,7 @@ export default async function AccountPage() {
     );
   }
   const orders = user.role === "customer" ? await listOrdersForCustomer(user.id) : [];
+  const addresses = user.role === "customer" ? await listAddresses(user.id) : [];
   const space = SPACE[user.role];
   const links = [
     ...(space ? [{ href: space.href, label: space.label, icon: ClipboardList }] : [{ href: "/orders", label: "Mes commandes", icon: ClipboardList }]),
@@ -56,6 +59,26 @@ export default async function AccountPage() {
         </div>
         <span className="ml-auto shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">{roleLabelFr(user.role)}</span>
       </section>
+
+      <div className="mt-3"><PushToggle role={user.role} /></div>
+      {user.role === "customer" && (
+        <section className="mt-3 rounded-2xl border border-gray-200 bg-white p-4" data-testid="account-addresses">
+          <h2 className="font-semibold">Adresses enregistrées</h2>
+          {addresses.length === 0 ? (
+            <p className="mt-1 text-sm text-gray-600">Aucune pour l’instant. Tu pourras épingler une adresse sur la carte au moment de commander.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-gray-100 text-sm">
+              {addresses.map((a) => (
+                <li key={a.id} className="py-2">
+                  <div className="font-medium">{a.label}{a.isDefault ? " · par défaut" : ""}</div>
+                  <div className="text-gray-600">{a.address} · {a.zone}{a.lat != null ? " · repère sur la carte" : ""}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link href="/checkout" className="mt-2 inline-block text-sm font-medium text-emerald-800">Gérer au paiement</Link>
+        </section>
+      )}
 
       <ul className="card-elevated mt-3 divide-y divide-gray-100 overflow-hidden border border-gray-200 bg-white">
         {links.map((l) => (

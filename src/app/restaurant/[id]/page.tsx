@@ -7,6 +7,8 @@ import { getMenuForRestaurant, getRestaurant } from "@/src/lib/data/db";
 import { cn, formatPriceUSD } from "@/src/lib/utils";
 import type { MenuItem } from "@/src/lib/types";
 import { AddToCartButton } from "./parts";
+import { LiveRefresh } from "@/src/components/LiveRefresh";
+import { DAY_NAMES, formatHoursRange, kinshasaClock } from "@/src/lib/hours";
 
 export const dynamic = "force-dynamic";
 
@@ -21,17 +23,19 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-const LAST = ["Accompagnement", "Dessert", "Boisson"];
+const ORDER = ["Entrées", "Plats", "Grillades", "Accompagnements", "Desserts", "Boissons"];
 
 function groupMenu(menu: MenuItem[]) {
   const groups = new Map<string, MenuItem[]>();
   for (const m of menu) {
-    const key = LAST.includes(m.cuisineTag || "") ? m.cuisineTag! : "Plats";
+    const key = m.category || "Plats";
     groups.set(key, [...(groups.get(key) || []), m]);
   }
-  const order = ["Plats", ...LAST];
-  const label: Record<string, string> = { Plats: "Plats", Accompagnement: "Accompagnements", Dessert: "Desserts", Boisson: "Boissons" };
-  return order.filter((k) => groups.get(k)?.length).map((k) => ({ key: k, label: label[k], items: groups.get(k)! }));
+  const keys = Array.from(groups.keys()).sort((a, b) => {
+    const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+    return (ia < 0 ? 50 : ia) - (ib < 0 ? 50 : ib) || a.localeCompare(b);
+  });
+  return keys.map((k) => ({ key: k.replace(/\W+/g, "-"), label: k, items: groups.get(k)! }));
 }
 
 export default async function RestaurantPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,8 +44,11 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
   if (!r) return notFound();
   const menu = await getMenuForRestaurant(r.id);
   const groups = groupMenu(menu);
+  const av = r.availability;
+  const today = kinshasaClock(new Date()).day;
   return (
     <div className="py-2">
+      <LiveRefresh topics={[`restaurant:${r.id}`]} badge={false} pollMs={60_000} />
       <div className="relative overflow-hidden rounded-2xl">
         <SafeImage src={r.imageUrl} alt={r.name} width={1200} height={600} priority className="h-44 w-full object-cover sm:h-56" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
@@ -52,9 +59,39 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
             <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" aria-hidden />{r.etaMinutes} min</span>
             <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-current" aria-hidden />{r.rating.toFixed(1)}</span>
             <span>· {r.zone}</span>
+            <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", r.isOpen ? "bg-emerald-500 text-white" : "bg-white text-gray-900")} data-testid="restaurant-open-state">
+              {r.isOpen ? "Ouvert" : av?.label ?? "Fermé"}
+            </span>
           </div>
         </div>
       </div>
+
+      {!r.isOpen && (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4" role="status" data-testid="closed-banner">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          <div className="text-sm">
+            <div className="font-semibold text-gray-900">
+              {av?.reason === "paused" ? "Ce restaurant ne prend pas de commandes pour le moment" : av?.reason === "suspended" ? "Ce restaurant est indisponible" : "Ce restaurant est fermé"}
+              {av?.detail && av.reason === "outside_hours" ? ` · ${av.detail}` : ""}
+            </div>
+            <div className="text-gray-600">Tu peux consulter le menu, mais pas commander maintenant.</div>
+          </div>
+        </div>
+      )}
+
+      {r.hours && (
+        <details className="mt-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-medium">Horaires · aujourd’hui {formatHoursRange(r.hours[today])}</summary>
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+              <li key={d} className={cn("flex justify-between gap-4", d === today && "font-semibold")}>
+                <span>{DAY_NAMES[d]}</span>
+                <span className="tabular-nums text-gray-700">{formatHoursRange(r.hours![d])}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {menu.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center">
@@ -82,7 +119,7 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
                     <div className="mt-0.5 line-clamp-2 text-sm text-gray-600">{m.description}</div>
                     <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                       <div className="font-bold tabular-nums text-emerald-800">{formatPriceUSD(m.priceUsd)}</div>
-                      <AddToCartButton menuItem={m} restaurantId={r.id} />
+                      <AddToCartButton menuItem={m} restaurantId={r.id} closed={!r.isOpen} />
                     </div>
                   </div>
                 </article>

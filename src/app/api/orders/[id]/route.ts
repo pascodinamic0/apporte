@@ -5,6 +5,7 @@ import { isMerchantAction } from "@/src/lib/orderGuard";
 import { orderPatchSchema } from "@/src/lib/validation";
 import { getCurrentUser } from "@/src/lib/auth";
 import { getServiceClient } from "@/src/lib/supabase/server";
+import { cancelIfPlaced, cancelOrder, customerCanCancel, reassignRider, setRefundFlag } from "@/src/lib/data/ops";
 
 export async function GET(
   _req: NextRequest,
@@ -59,7 +60,10 @@ export async function PATCH(
   const parsed = orderPatchSchema.safeParse(raw);
   if (!parsed.success) {
     const action = String((raw as { action?: unknown }).action);
-    const known = ["update_status", "merchant_accept", "merchant_preparing", "merchant_ready", "rate", "support_note"];
+    const known = [
+      "update_status", "merchant_accept", "merchant_preparing", "merchant_ready", "merchant_accept_prep", "merchant_reject",
+      "customer_cancel", "admin_cancel", "admin_reassign", "admin_refund", "rate", "support_note",
+    ];
     const reason = !known.includes(action)
       ? "unknown_action"
       : action === "rate"
@@ -70,8 +74,11 @@ export async function PATCH(
   const body = parsed.data;
 
   // Merchant transitions go through the single guarded entry point.
-  if (isMerchantAction(body.action)) {
-    const res = await advanceOrderAsMerchant(id, body.action);
+  if (isMerchantAction(body.action) || body.action === "merchant_accept_prep") {
+    const res =
+      body.action === "merchant_accept_prep"
+        ? await advanceOrderAsMerchant(id, "merchant_accept", { prepMinutes: body.prepMinutes })
+        : await advanceOrderAsMerchant(id, body.action);
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
     const updated = await getOrder(id);
     if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -86,9 +93,37 @@ export async function PATCH(
   const isMerchant = user.role === "merchant" && !!user.merchantId && user.merchantId === order.restaurantId;
   const forbidden = () => NextResponse.json({ error: "forbidden" }, { status: 403 });
 
+  const conflict = (reason: string) => NextResponse.json({ error: "conflict", reason }, { status: 409 });
+
   if (body.action === "update_status") {
     if (!isAdmin) return forbidden();
     await updateOrderStatus(id, body.status);
+  } else if (body.action === "merchant_reject") {
+    if (!isMerchant) return forbidden();
+    if (order.status !== "placed") return conflict("invalid_state");
+    const ok = await cancelIfPlaced(id, `merchant:${user.id}`, body.reason);
+    if (!ok) return conflict("invalid_state");
+  } else if (body.action === "customer_cancel") {
+    if (!isCustomer) return forbidden();
+    if (!customerCanCancel(order)) return conflict("already_accepted");
+    const ok = await cancelIfPlaced(id, `customer:${user.id}`, body.reason || "Annulée par le client", !order.restaurantId);
+    if (!ok) return conflict("already_accepted");
+  } else if (body.action === "admin_cancel") {
+    if (!isAdmin) return forbidden();
+    if (order.status === "delivered" || order.status === "cancelled") return conflict("invalid_state");
+    await cancelOrder(id, `admin:${user.id}`, body.reason);
+  } else if (body.action === "admin_reassign") {
+    if (!isAdmin) return forbidden();
+    try {
+      await reassignRider(id, body.riderId);
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (["invalid_state", "rider_busy", "rider_suspended", "rider_not_found"].includes(msg)) return conflict(msg);
+      throw e;
+    }
+  } else if (body.action === "admin_refund") {
+    if (!isAdmin) return forbidden();
+    await setRefundFlag(id, body.flag, body.note);
   } else if (body.action === "rate") {
     if (!isCustomer) return forbidden();
     if (order.status !== "delivered") {
