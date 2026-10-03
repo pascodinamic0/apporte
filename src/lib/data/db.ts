@@ -9,8 +9,17 @@ import {
   RiderStatus,
   SmartFindProduct,
   SupportNote,
+  RiderPayout,
+  SupportRequest,
+  SupportRequestStatus,
+  UserRole,
 } from "../types";
 import { PILOT_ZONE } from "../seed";
+import { markRiderPresent, riderIsPresent, stepDispatchQueue } from "../dispatch";
+import { riderEarningsUsd, summarizeRiderEarnings } from "../earnings";
+import { HUB, OFFER_LEASE_MS, deliveryLegKm, haversineKm, quoteDeliveryFeeUsd } from "../geo";
+import { lockedPayoutOrderIds, mobileMoneyProvider, selectWithdrawable } from "../payouts";
+import { normalizeDrcPhone } from "../phone";
 import { generatePin, randomId } from "../utils";
 import { getServiceClient } from "../supabase/server";
 import * as memory from "./memory";
@@ -79,11 +88,28 @@ export async function listRiders(): Promise<Rider[]> {
   return (data || []).map(mapRider);
 }
 
+export async function getRider(id: string): Promise<Rider | undefined> {
+  if (!supabaseConfigured()) return memory.getRider(id);
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("riders").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? mapRider(data) : undefined;
+}
+
+export async function getUserForRider(riderId: string) {
+  if (!supabaseConfigured()) return memory.getUserForRider(riderId);
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("users").select("*").eq("rider_id", riderId).maybeSingle();
+  if (error) throw error;
+  return data ? mapUserRow(data) : undefined;
+}
+
 export async function setRiderStatus(riderId: string, status: RiderStatus) {
   if (!supabaseConfigured()) return memory.setRiderStatus(riderId, status);
   const supabase = getServiceClient();
   const { error } = await supabase.from("riders").update({ status }).eq("id", riderId);
   if (error) throw error;
+  if (status === "offline") await releaseOffersHeldBy(riderId);
 }
 
 // Menu admin
@@ -161,10 +187,6 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   if (error) throw error;
   if (!data) return undefined;
   const base = mapOrderWithRelations(data);
-  // Lazily advance expired dispatch offers
-  if (base.status === "rider_searching") {
-    await maybeAdvanceOfferQueue(base.id);
-  }
   const [hydrated] = await hydrateOrderImages([base]);
   return hydrated;
 }
@@ -393,15 +415,13 @@ export async function addSupportNote(
 }
 
 // Dispatch
-export async function nextOfferForRider(riderId: string) {
-  if (!supabaseConfigured()) return memory.nextOfferForRider(riderId);
+export async function nextOfferForRider(riderId: string, skip: Set<string> = new Set()) {
+  if (!supabaseConfigured()) return memory.nextOfferForRider(riderId, skip);
   const supabase = getServiceClient();
-  // Ensure rider is online
   const rres = await supabase.from("riders").select("*").eq("id", riderId).maybeSingle();
   if (rres.error) throw rres.error;
   const rider = rres.data ? mapRider(rres.data) : undefined;
   if (!rider || rider.status !== "online" || rider.suspended) return null;
-  // Candidate orders
   const ores = await supabase
     .from("orders")
     .select("*")
@@ -411,68 +431,46 @@ export async function nextOfferForRider(riderId: string) {
   const qres = await supabase.from("dispatch_queues").select("*");
   if (qres.error) throw qres.error;
   const dqByOrder = new Map<string, any>((qres.data || []).map((q) => [q.order_id, q]));
+  const online = await onlineRiderIds();
+  const now = Date.now();
+  markRiderPresent(riderId, now);
+
   for (const row of ores.data || []) {
     const o = mapOrderRow(row);
-    let q = dqByOrder.get(o.id);
-    if (!q) {
-      // Repair missing queue lazily
-      await buildOfferQueueForOrder(o);
-      const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
-      if (!fresh.error && fresh.data) q = fresh.data;
-      else continue;
+    const q = dqByOrder.get(o.id);
+    // Only a queue created when the order became searchable is a real offer.
+    // Building one on read is what resurfaced old courses as new ones.
+    if (!q) continue;
+    let riderIds: string[] = Array.isArray(q.rider_ids) ? [...q.rider_ids] : [];
+    if (!riderIds.length) continue;
+    const missing = [...online].filter((id) => !riderIds.includes(id));
+    if (missing.length) {
+      riderIds = [...riderIds, ...missing];
+      await supabase.from("dispatch_queues").update({ rider_ids: riderIds, updated_at: new Date().toISOString() }).eq("order_id", o.id);
     }
-    // If expired or pointing to an offline rider, advance lazily
-    const now = Date.now();
-    let idx = Math.max(0, q.current_index ?? 0);
-    let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
-    const current: string | undefined = riderIds[idx];
-    // Helper: ensure current index points to an online rider
-    async function normalizeIndex(startIndex: number) {
-      if (!riderIds.length) {
-        // Rebuild from scratch when queue is empty
-        await buildOfferQueueForOrder(o);
-        const fresh = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
-        if (!fresh.error && fresh.data) {
-          riderIds = fresh.data.rider_ids || [];
-          idx = Math.max(0, fresh.data.current_index ?? 0);
-        }
-      }
-      let tries = 0;
-      let i = startIndex;
-      while (tries < Math.max(1, riderIds.length)) {
-        const rid = riderIds[i];
-        if (rid) {
-          const rr = await supabase.from("riders").select("status").eq("id", rid).maybeSingle();
-          if (!rr.error && rr.data && rr.data.status === "online") {
-            return i;
-          }
-        }
-        i = (i + 1) % Math.max(1, riderIds.length);
-        tries++;
-      }
-      return startIndex;
-    }
-    const isExpired = q.expire_at ? new Date(q.expire_at).getTime() <= now : true;
-    if (isExpired || !current) {
-      idx = await normalizeIndex((idx + 1) % Math.max(1, riderIds.length || 1));
+    const step = stepDispatchQueue(
+      {
+        riderIds,
+        currentIndex: q.current_index ?? 0,
+        expireAt: q.expire_at ? new Date(q.expire_at).getTime() : undefined,
+      },
+      riderId,
+      { now, online, declined: skip.has(o.id), present: (id) => riderIsPresent(id, now) },
+    );
+    if (step.changed) {
       await supabase
         .from("dispatch_queues")
-        .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
+        .update({
+          current_index: step.currentIndex,
+          expire_at: new Date(step.expireAt ?? now).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("order_id", o.id);
-      // Reload queue state after advancement
-      const re = await supabase.from("dispatch_queues").select("*").eq("order_id", o.id).maybeSingle();
-      if (!re.error && re.data) {
-        q = re.data;
-        riderIds = Array.isArray(q.rider_ids) ? q.rider_ids : [];
-        idx = Math.max(0, q.current_index ?? 0);
-      }
     }
-    const currentRiderId: string | undefined = (riderIds[idx] ?? riderIds[0]) as string | undefined;
-    if (currentRiderId === riderId) {
-      const offer = await buildOffer(o.id, riderId);
-      // Do NOT touch expire_at on polling; it must not reset
-      return offer;
-    }
+    if (!step.offer || !step.expireAt) continue;
+    const offer = await buildOffer(o.id, riderId);
+    if (!offer) continue;
+    return { ...offer, expiresAt: step.expireAt };
   }
   return null;
 }
@@ -487,10 +485,16 @@ export async function declineOffer(riderId: string, orderId: string) {
   const idx = q.current_index ?? 0;
   const current: string | undefined = q.rider_ids?.[idx];
   if (current === riderId) {
-    const nextIndex = Math.min(idx + 1, Math.max(0, (q.rider_ids?.length ?? 1) - 1));
+    const ids: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+    const online = await onlineRiderIds();
+    const moved = nextOnlineForward(ids, idx + 1, online);
     await supabase
       .from("dispatch_queues")
-      .update({ current_index: nextIndex, expire_at: null, updated_at: new Date().toISOString() })
+      .update({
+        current_index: moved == null ? ids.length : moved,
+        expire_at: new Date(Date.now() + (moved == null ? 0 : OFFER_LEASE_MS)).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       .eq("order_id", orderId);
     await emitOrderEvent(orderId);
   }
@@ -550,7 +554,7 @@ export async function confirmDelivered(riderId: string, orderId: string, entered
     .eq("id", orderId);
   if (error) throw error;
   // Update rider earnings and status
-  const earn = estimateEarningsUsd(o);
+  const earn = riderEarningsUsd(o.deliveryFeeUsd);
   // Read-modify-write
   const rNow = await supabase.from("riders").select("*").eq("id", riderId).maybeSingle();
   if (rNow.error) throw rNow.error;
@@ -577,6 +581,170 @@ export async function progressToArrived(riderId: string, orderId: string) {
 export async function progressToDelivering(riderId: string, orderId: string) {
   if (!supabaseConfigured()) return memory.progressToDelivering(riderId, orderId);
   return await guardRiderProgress(riderId, orderId, "delivering");
+}
+export async function progressToCustomer(riderId: string, orderId: string) {
+  if (!supabaseConfigured()) return memory.progressToCustomer(riderId, orderId);
+  return await guardRiderProgress(riderId, orderId, "arrived_at_customer");
+}
+
+export async function setRiderPayout(orderId: string, paid: boolean) {
+  if (!supabaseConfigured()) return memory.setRiderPayout(orderId, paid);
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ rider_paid_at: paid ? new Date().toISOString() : null })
+    .eq("id", orderId)
+    .eq("status", "delivered")
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  if (paid && data) await closeCoveredPayouts([orderId]);
+  return !!data;
+}
+
+export async function listRiderPayouts(riderId?: string): Promise<RiderPayout[]> {
+  if (!supabaseConfigured()) return memory.listRiderPayouts(riderId);
+  const supabase = getServiceClient();
+  let query = supabase.from("rider_payouts").select("*").order("created_at", { ascending: false });
+  if (riderId) query = query.eq("rider_id", riderId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(mapRiderPayout);
+}
+
+export async function createRiderPayout(
+  riderId: string,
+  phone: string,
+): Promise<{ ok: true; payout: RiderPayout } | { ok: false; reason: "invalid_phone" | "nothing_to_withdraw" }> {
+  if (!supabaseConfigured()) return memory.createRiderPayout(riderId, phone);
+  const normalized = normalizeDrcPhone(phone);
+  const network = normalized ? mobileMoneyProvider(normalized) : null;
+  if (!normalized || !network) return { ok: false, reason: "invalid_phone" };
+  const [orders, payouts] = await Promise.all([listOrdersForRider(riderId), listRiderPayouts(riderId)]);
+  const { orderIds, amountUsd } = selectWithdrawable(orders, lockedPayoutOrderIds(payouts));
+  if (!orderIds.length || amountUsd <= 0) return { ok: false, reason: "nothing_to_withdraw" };
+  const now = new Date().toISOString();
+  const row = {
+    id: randomId("pay"),
+    rider_id: riderId,
+    amount_usd: amountUsd,
+    order_ids: orderIds,
+    phone: normalized,
+    provider: network.provider,
+    status: "requested",
+    created_at: now,
+    updated_at: now,
+  };
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("rider_payouts").insert(row).select("*").maybeSingle();
+  if (error) throw error;
+  if (!data) return { ok: false, reason: "nothing_to_withdraw" };
+  return { ok: true, payout: mapRiderPayout(data) };
+}
+
+export async function settleRiderPayout(id: string, action: "pay" | "reject"): Promise<RiderPayout | undefined> {
+  if (!supabaseConfigured()) return memory.settleRiderPayout(id, action);
+  const supabase = getServiceClient();
+  const existing = await supabase.from("rider_payouts").select("*").eq("id", id).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (!existing.data || existing.data.status !== "requested") return undefined;
+  const now = new Date().toISOString();
+  if (action === "pay") {
+    const orderIds: string[] = Array.isArray(existing.data.order_ids) ? existing.data.order_ids : [];
+    if (orderIds.length) {
+      const upd = await supabase
+        .from("orders")
+        .update({ rider_paid_at: now, updated_at: now })
+        .in("id", orderIds)
+        .eq("status", "delivered")
+        .is("rider_paid_at", null);
+      if (upd.error) throw upd.error;
+    }
+  }
+  const { data, error } = await supabase
+    .from("rider_payouts")
+    .update({
+      status: action === "pay" ? "paid" : "rejected",
+      paid_at: action === "pay" ? now : null,
+      updated_at: now,
+    })
+    .eq("id", id)
+    .eq("status", "requested")
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapRiderPayout(data) : undefined;
+}
+
+async function closeCoveredPayouts(orderIds: string[]) {
+  const supabase = getServiceClient();
+  for (const orderId of orderIds) {
+    const { data, error } = await supabase.from("rider_payouts").select("*").eq("status", "requested").contains("order_ids", [orderId]);
+    if (error) throw error;
+    for (const row of data || []) {
+      const ids: string[] = Array.isArray(row.order_ids) ? row.order_ids : [];
+      if (!ids.length) continue;
+      const orders = await supabase.from("orders").select("id,rider_paid_at").in("id", ids);
+      if (orders.error) throw orders.error;
+      const paid = new Set((orders.data || []).filter((o) => o.rider_paid_at).map((o) => o.id));
+      if (!ids.every((id) => paid.has(id))) continue;
+      const now = new Date().toISOString();
+      await supabase.from("rider_payouts").update({ status: "paid", paid_at: now, updated_at: now }).eq("id", row.id).eq("status", "requested");
+    }
+  }
+}
+
+export async function createSupportRequest(input: {
+  userId: string;
+  userName: string;
+  role: UserRole;
+  topic: string;
+  message: string;
+  orderId?: string;
+  priority: "normal" | "urgent";
+}): Promise<SupportRequest> {
+  if (!supabaseConfigured()) return memory.createSupportRequest(input);
+  const supabase = getServiceClient();
+  const id = randomId("sup");
+  const { data, error } = await supabase
+    .from("support_requests")
+    .insert({
+      id,
+      user_id: input.userId,
+      user_name: input.userName,
+      role: input.role,
+      topic: input.topic,
+      message: input.message,
+      order_id: input.orderId ?? null,
+      priority: input.priority,
+      status: "open",
+    })
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Failed to create support request");
+  return mapSupportRequest(data);
+}
+
+export async function listSupportRequests(): Promise<SupportRequest[]> {
+  if (!supabaseConfigured()) return memory.listSupportRequests();
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("support_requests").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []).map(mapSupportRequest);
+}
+
+export async function setSupportRequestStatus(id: string, status: SupportRequestStatus): Promise<SupportRequest | undefined> {
+  if (!supabaseConfigured()) return memory.setSupportRequestStatus(id, status);
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("support_requests")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapSupportRequest(data) : undefined;
 }
 
 async function guardRiderProgress(riderId: string, orderId: string, status: OrderStatus) {
@@ -629,23 +797,9 @@ export async function getDemoUsers() {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
-/** Rider keeps riderSharePct (80% by default) of the delivery fee; stored per order at checkout. */
+/** Rider share stored on the order at checkout, otherwise the default percentage of the delivery fee. */
 function estimateEarningsUsd(order: Order): number {
   return order.riderEarningUsd ?? round2((order.deliveryFeeUsd * DEFAULT_FEES.riderSharePct) / 100);
-}
-
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-function deg2rad(deg: number) {
-  return (deg * Math.PI) / 180;
 }
 
 async function buildOffer(orderId: string, riderId: string) {
@@ -659,19 +813,10 @@ async function buildOffer(orderId: string, riderId: string) {
   if (!oRes.data || !rRes.data) return null;
   const o = mapOrderRow(oRes.data);
   const rider = mapRider(rRes.data);
-  // Pickup distance: restaurant when available; Smart Finds hub otherwise
-  // Smart Finds hub (Kinshasa, Gombe) — approximate coordinates
-  const HUB_LAT = -4.312;
-  const HUB_LON = 15.31;
-  let pickupDistance = 1.2;
-  if (o.restaurantId) {
-    const rest = await getRestaurant(o.restaurantId);
-    if (rest) {
-      pickupDistance = haversineKm(rider.latitude, rider.longitude, rest.latitude, rest.longitude);
-    }
-  } else {
-    pickupDistance = haversineKm(rider.latitude, rider.longitude, HUB_LAT, HUB_LON);
-  }
+  const rest = o.restaurantId ? await getRestaurant(o.restaurantId) : undefined;
+  const pickupLat = rest?.latitude ?? HUB.lat;
+  const pickupLon = rest?.longitude ?? HUB.lon;
+  const pickupDistance = haversineKm(rider.latitude, rider.longitude, pickupLat, pickupLon);
   // Fetch first item for thumbnail/name
   let firstItemName: string | undefined = undefined;
   let firstItemImageUrl: string | undefined = undefined;
@@ -696,25 +841,20 @@ async function buildOffer(orderId: string, riderId: string) {
     }
   }
   // Pickup label/name
-  let pickupName = "Dépôt Trouvailles Apporte";
-  let pickupZone = "Gombe";
-  if (o.restaurantId) {
-    const rest = await getRestaurant(o.restaurantId);
-    if (rest) {
-      pickupName = rest.name;
-      pickupZone = rest.zone;
-    }
-  }
-  const deliveryDistance = 2.1;
-  const eta = Math.round(pickupDistance * 6 + deliveryDistance * 6 + 6);
+  const pickupName = rest?.name ?? "Dépôt Trouvailles Apporte";
+  const pickupZone = rest?.zone ?? o.zone;
+  const deliveryDistance = deliveryLegKm(pickupLat, pickupLon);
+  const eta = Math.max(8, Math.round(pickupDistance * 6 + deliveryDistance * 6 + 6));
   return {
     orderId,
+    orderRef: orderId.slice(-6),
     riderId,
     pickupDistanceKm: round2(pickupDistance),
     deliveryDistanceKm: deliveryDistance,
     etaMinutes: eta,
-    earningsUsd: estimateEarningsUsd(o),
-    expiresAt: Date.now() + 30_000,
+    deliveryFeeUsd: o.deliveryFeeUsd,
+    earningsUsd: riderEarningsUsd(o.deliveryFeeUsd),
+    expiresAt: Date.now() + OFFER_LEASE_MS,
     // Enriched fields for rider offer card
     deliveryAddress: o.address,
     deliveryZone: o.zone,
@@ -728,9 +868,6 @@ async function buildOffer(orderId: string, riderId: string) {
 export async function buildOfferQueueForOrder(order: Order) {
   const supabase = getServiceClient();
   const rest = order.restaurantId ? await getRestaurant(order.restaurantId) : undefined;
-  // Smart Finds hub when no restaurant
-  const HUB_LAT = -4.312;
-  const HUB_LON = 15.31;
   const { data, error } = await supabase.from("riders").select("*").eq("status", "online").eq("suspended", false);
   if (error) throw error;
   const eligible = (data || []).map(mapRider);
@@ -739,7 +876,7 @@ export async function buildOfferQueueForOrder(order: Order) {
       const pickup =
         rest?.latitude && rest.longitude
           ? haversineKm(r.latitude, r.longitude, rest.latitude, rest.longitude)
-          : haversineKm(r.latitude, r.longitude, HUB_LAT, HUB_LON);
+          : haversineKm(r.latitude, r.longitude, HUB.lat, HUB.lon);
       const score = 100 - pickup * 10 + r.reliabilityPercent * 0.1;
       return { riderId: r.id, pickup, score };
     })
@@ -752,37 +889,39 @@ export async function buildOfferQueueForOrder(order: Order) {
         order_id: order.id,
         rider_ids: ranked,
         current_index: 0,
-        expire_at: new Date(Date.now() + 30_000).toISOString(),
+        expire_at: new Date(Date.now() + OFFER_LEASE_MS).toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "order_id" },
     );
 }
 
-// Advance to next rider if current offer expired or invalid. Called on reads.
-async function maybeAdvanceOfferQueue(orderId: string) {
-  const supabase = getServiceClient();
-  const qres = await supabase.from("dispatch_queues").select("*").eq("order_id", orderId).maybeSingle();
-  if (qres.error) return;
-  const q = qres.data;
-  if (!q) {
-    // Repair missing queue lazily
-    const ores = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
-    if (!ores.error && ores.data) {
-      await buildOfferQueueForOrder(mapOrderRow(ores.data));
-    }
-    return;
+function nextOnlineForward(riderIds: string[], start: number, online: Set<string>): number | null {
+  for (let i = start; i < riderIds.length; i++) {
+    if (online.has(riderIds[i])) return i;
   }
-  const now = Date.now();
-  const isExpired = !q.expire_at || new Date(q.expire_at).getTime() <= now;
-  let riderIds: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
-  if (!isExpired && riderIds.length) return;
-  let idx = (q.current_index ?? 0) + 1;
-  if (riderIds.length) idx = idx % riderIds.length;
-  await supabase
-    .from("dispatch_queues")
-    .update({ current_index: idx, expire_at: new Date(Date.now() + 30_000).toISOString(), updated_at: new Date().toISOString() })
-    .eq("order_id", orderId);
+  return null;
+}
+
+async function onlineRiderIds(): Promise<Set<string>> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("riders").select("id").eq("status", "online");
+  if (error) throw error;
+  return new Set((data || []).map((r: { id: string }) => r.id));
+}
+
+/** Drop the lease so the next online rider can take the course. */
+async function releaseOffersHeldBy(riderId: string) {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase.from("dispatch_queues").select("order_id,rider_ids,current_index");
+  if (error) throw error;
+  const now = new Date().toISOString();
+  for (const q of data || []) {
+    const ids: string[] = Array.isArray(q.rider_ids) ? q.rider_ids : [];
+    const idx = Math.max(0, q.current_index ?? 0);
+    if (ids[idx] !== riderId) continue;
+    await supabase.from("dispatch_queues").update({ expire_at: now, updated_at: now }).eq("order_id", q.order_id);
+  }
 }
 
 export function mapOrderWithRelations(row: any): Order {
@@ -910,6 +1049,7 @@ export function mapRider(r: any): Rider {
     earningsTodayUsd: Number(r.earnings_today_usd ?? 0),
     suspended: !!r.suspended,
     phone: r.phone ?? undefined,
+    email: r.email ?? undefined,
   };
 }
 export function mapOrderRow(o: any): Order {
@@ -953,6 +1093,36 @@ export function mapOrderRow(o: any): Order {
     prepMinutes: o.prep_minutes ?? undefined,
     acceptedAt: o.accepted_at ? new Date(o.accepted_at).getTime() : undefined,
     deliveredAt: o.delivered_at ? new Date(o.delivered_at).getTime() : undefined,
+    riderPaidAt: o.rider_paid_at ? new Date(o.rider_paid_at).getTime() : undefined,
+  };
+}
+function mapRiderPayout(row: any): RiderPayout {
+  return {
+    id: row.id,
+    riderId: row.rider_id,
+    amountUsd: Number(row.amount_usd),
+    orderIds: Array.isArray(row.order_ids) ? row.order_ids : [],
+    phone: row.phone,
+    provider: row.provider,
+    status: row.status,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+    paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
+  };
+}
+function mapSupportRequest(row: any): SupportRequest {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userName: row.user_name,
+    role: row.role,
+    topic: row.topic,
+    message: row.message,
+    orderId: row.order_id ?? undefined,
+    priority: row.priority,
+    status: row.status,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
   };
 }
 function mapOrderItem(i: any): OrderItem {
@@ -1003,6 +1173,9 @@ export type RiderActiveJob = {
   totalUsd: number;
   paymentMethod: PaymentMethod;
   earningsUsd: number;
+  deliveryFeeUsd: number;
+  pickupLat: number;
+  pickupLon: number;
 };
 
 export type RiderState = {
@@ -1019,6 +1192,7 @@ const RIDER_ACTIVE: OrderStatus[] = [
   "arrived",
   "picked_up",
   "delivering",
+  "arrived_at_customer",
 ];
 
 export async function getRiderState(riderId: string): Promise<RiderState> {
@@ -1047,9 +1221,12 @@ export async function getRiderState(riderId: string): Promise<RiderState> {
       zone: active.zone,
       pickupName: rest?.name ?? "Dépôt Trouvailles",
       pickupZone: rest?.zone ?? "Gombe",
+      pickupLat: rest?.latitude ?? HUB.lat,
+      pickupLon: rest?.longitude ?? HUB.lon,
       items: active.items.map((i) => ({ name: i.name, quantity: i.quantity, imageUrl: i.imageUrl })),
       totalUsd: active.totalUsd,
       paymentMethod: active.paymentMethod,
+      deliveryFeeUsd: active.deliveryFeeUsd,
       earningsUsd: estimateEarningsUsd(active),
     };
   }
@@ -1064,7 +1241,7 @@ export async function getRiderState(riderId: string): Promise<RiderState> {
     riderId,
     name: rider?.name ?? "Livreur",
     status,
-    earningsTodayUsd: rider?.earningsTodayUsd ?? 0,
+    earningsTodayUsd: summarizeRiderEarnings(orders, "today").earned,
     activeOrder,
   };
 }

@@ -22,6 +22,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
   "arrived",
   "picked_up",
   "delivering",
+  "arrived_at_customer",
   "delivered",
   "cancelled",
 ];
@@ -179,13 +180,28 @@ export const orderPatchSchema = z.discriminatedUnion("action", [
     note: z.string().trim().min(1).max(500),
     by: z.string().optional(),
   }),
+  z.object({
+    action: z.literal("rider_payout"),
+    paid: z.boolean(),
+  }),
 ]);
 
 export const dispatchPostSchema = z.object({
-  action: z.enum(["accept", "decline", "going", "arrived", "picked_up", "delivering", "delivered"]),
+  action: z.enum(["accept", "decline", "going", "arrived", "picked_up", "delivering", "at_customer", "delivered"]),
   orderId: id,
   pin: z.string().trim().regex(/^\d{4}$/).optional(),
   riderId: z.string().optional(),
+});
+
+export const supportRequestSchema = z.object({
+  topic: z.string().trim().min(3).max(80),
+  message: z.string().trim().min(10).max(1500),
+  orderId: id.optional(),
+  priority: z.enum(["normal", "urgent"]).default("normal"),
+});
+
+export const supportStatusSchema = z.object({
+  status: z.enum(["open", "in_progress", "resolved"]),
 });
 
 export const riderStatusSchema = z.object({ status: z.enum(["offline", "online"]) });

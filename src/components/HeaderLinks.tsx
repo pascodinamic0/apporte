@@ -11,7 +11,10 @@ export function HeaderLinks({ role, signedIn }: { role: UserRole; signedIn: bool
   let items = navItemsForRole(role, signedIn);
   if (role === "customer") {
     items = items.filter((i) => i.href !== "/");
-    items.splice(3, 0, { href: "/support", label: "Aide", icon: LifeBuoy });
+    const accountAt = items.findIndex((i) => i.href === "/account");
+    const aide = { href: "/support", label: "Aide", icon: LifeBuoy };
+    if (accountAt >= 0) items.splice(accountAt, 0, aide);
+    else items.push(aide);
     if (!signedIn) items = items.map((i) => (i.href === "/account" ? { ...i, href: "/demo", label: "Se connecter" } : i));
   }
   return (

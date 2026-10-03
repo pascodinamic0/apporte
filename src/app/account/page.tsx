@@ -96,7 +96,7 @@ export default async function AccountPage() {
         <section className="mt-5">
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">Dernières commandes</h2>
-            {orders.length > 3 && <Link href="/orders" className="text-sm font-medium">Tout voir</Link>}
+            {orders.length > 0 && <Link href="/orders" className="text-sm font-medium">Toutes les commandes</Link>}
           </div>
           {orders.length === 0 ? (
             <p className="text-sm text-gray-600">Aucune commande pour l’instant.</p>

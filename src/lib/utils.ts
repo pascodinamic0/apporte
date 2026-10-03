@@ -54,6 +54,8 @@ export function statusLabelFr(status: string): string {
       return "Commande récupérée";
     case "delivering":
       return "En livraison";
+    case "arrived_at_customer":
+      return "Chez le client";
     case "delivered":
       return "Livré";
     case "cancelled":

@@ -98,14 +98,14 @@ set name = excluded.name,
     updated_at = now();
 
 -- Riders
-insert into public.riders (id,name,status,reliability_percent,latitude,longitude,earnings_today_usd)
+insert into public.riders (id,name,status,reliability_percent,latitude,longitude,earnings_today_usd,phone,email)
 values
-  ('rider_1','Jean','online',98,-4.314,15.312,0),
-  ('rider_2','Patrick','online',96,-4.318,15.305,0),
-  ('rider_3','Martha','online',92,-4.321,15.309,0),
-  ('rider_4','Junior','online',90,-4.312,15.298,0),
-  ('rider_5','Amina','offline',95,-4.305,15.315,0),
-  ('rider_6','Michel','online',91,-4.316,15.301,0)
+  ('rider_1','Jean','online',98,-4.314,15.312,0,'+243812345678','rider@demo.apporte.cd'),
+  ('rider_2','Patrick','online',96,-4.318,15.305,0,'+243822345679','patrick.livreur@demo.apporte.cd'),
+  ('rider_3','Martha','online',92,-4.321,15.309,0,'+243972345680','martha.livreur@demo.apporte.cd'),
+  ('rider_4','Junior','online',90,-4.312,15.298,0,'+243842345681','junior.livreur@demo.apporte.cd'),
+  ('rider_5','Amina','offline',95,-4.305,15.315,0,'+243992345682','amina.livreur@demo.apporte.cd'),
+  ('rider_6','Michel','online',91,-4.316,15.301,0,'+243852345683','michel.livreur@demo.apporte.cd')
 on conflict (id) do update
 set name = excluded.name,
     status = excluded.status,
@@ -113,5 +113,7 @@ set name = excluded.name,
     latitude = excluded.latitude,
     longitude = excluded.longitude,
     earnings_today_usd = excluded.earnings_today_usd,
+    phone = excluded.phone,
+    email = excluded.email,
     updated_at = now();
 

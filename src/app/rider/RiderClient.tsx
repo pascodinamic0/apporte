@@ -1,21 +1,24 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Bike, CheckCircle2, MapPin, Package, Phone, Store, Wallet } from "lucide-react";
+import { Bike, CheckCircle2, MapPin, Navigation, Package, Phone, Store, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card";
 import { Button } from "@/src/components/ui/button";
 import { SafeImage } from "@/src/components/SafeImage";
 import { cn, formatPriceUSD, paymentLabelFr } from "@/src/lib/utils";
 import { formatDrcPhone } from "@/src/lib/phone";
+import { mapsDestination } from "@/src/lib/geo";
 import type { RiderStatus } from "@/src/lib/types";
 import type { RiderActiveJob, RiderState } from "@/src/lib/data/db";
 import { useLive } from "@/src/lib/client/live";
 
 type Offer = {
   orderId: string;
+  orderRef?: string;
   pickupDistanceKm: number;
   deliveryDistanceKm: number;
   etaMinutes: number;
+  deliveryFeeUsd: number;
   earningsUsd: number;
   expiresAt: number;
   deliveryAddress?: string;
@@ -31,7 +34,8 @@ const STEPS: { status: RiderActiveJob["status"]; action: string; cta: string; la
   { status: "going_to_restaurant", action: "arrived", cta: "Je suis arrivé au restaurant", label: "En route vers le restaurant" },
   { status: "arrived", action: "picked_up", cta: "Commande récupérée", label: "Au restaurant" },
   { status: "picked_up", action: "delivering", cta: "Je pars livrer le client", label: "Commande récupérée" },
-  { status: "delivering", action: "delivered", cta: "Confirmer la livraison", label: "En livraison" },
+  { status: "delivering", action: "at_customer", cta: "Je suis arrivé chez le client", label: "En route vers le client" },
+  { status: "arrived_at_customer", action: "delivered", cta: "Confirmer la livraison", label: "Chez le client" },
 ];
 
 const ERRORS: Record<string, string> = {
@@ -49,9 +53,9 @@ export function RiderClient({ initial }: { initial: RiderState }) {
   const [offer, setOffer] = useState<Offer>(null);
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const riderId = initial.riderId;
   const inFlight = useRef(false);
+  const skippedUntil = useRef<Map<string, number>>(new Map());
 
   const refresh = useCallback(async () => {
     try {
@@ -116,12 +120,6 @@ export function RiderClient({ initial }: { initial: RiderState }) {
     return () => clearInterval(id);
   }, [status, job, pollOffer]);
 
-  useEffect(() => {
-    if (!offer) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [offer]);
-
   async function changeStatus(next: "online" | "offline") {
     if (next === status) return;
     const prev = status;
@@ -156,6 +154,7 @@ export function RiderClient({ initial }: { initial: RiderState }) {
     if (!offer || busy) return;
     setBusy(true);
     try {
+      if (action === "decline") skippedUntil.current.set(offer.orderId, Date.now() + 60_000);
       const { ok, data } = await post(action, offer.orderId);
       setOffer(null);
       if (!ok) {
@@ -206,8 +205,10 @@ export function RiderClient({ initial }: { initial: RiderState }) {
 
   const stepIndex = job ? STEPS.findIndex((s) => s.status === job.status) : -1;
   const step = stepIndex >= 0 ? STEPS[stepIndex] : null;
-  const secondsLeft = offer ? Math.max(0, Math.round((offer.expiresAt - now) / 1000)) : 0;
   const showOffer = !!offer && status === "online" && !job;
+  const pickupMaps = job ? mapsDestination(`${job.pickupLat},${job.pickupLon}`) : "";
+  const dropoffMaps = job ? mapsDestination(`${job.address}, ${job.zone}, Kinshasa`) : "";
+  const towardPickup = !!step && (step.status === "rider_assigned" || step.status === "going_to_restaurant" || step.status === "arrived");
 
   return (
     <div className="py-2" style={showOffer ? { paddingBottom: "max(112px, calc(80px + 64px + env(safe-area-inset-bottom)))" } : undefined}>
@@ -274,24 +275,28 @@ export function RiderClient({ initial }: { initial: RiderState }) {
 
       {showOffer && offer && (
         <Card className="mt-4 ring-2 ring-emerald-600/30">
-          <CardHeader className="flex items-center justify-between pb-3 md:pb-3">
+          <CardHeader className="pb-3 md:pb-3">
             <div className="font-semibold">Nouvelle course</div>
-            <div className={cn("rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums", secondsLeft <= 10 ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800")}>
-              Expire dans {secondsLeft} s
-            </div>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
+            <div className="rounded-xl bg-emerald-50 px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Tu reçois</div>
+              <div className="text-2xl font-extrabold tabular-nums text-emerald-900">{formatPriceUSD(offer.earningsUsd)}</div>
+              <p className="text-xs text-emerald-800">
+                70 % des frais ({formatPriceUSD(offer.deliveryFeeUsd)}) · {offer.deliveryDistanceKm} km jusqu’au client
+              </p>
+            </div>
             {offer.firstItemImageUrl && (
               <SafeImage src={offer.firstItemImageUrl} alt={offer.firstItemName || "Article"} width={640} height={240} className="h-28 w-full rounded-xl object-cover" />
             )}
             <div className="grid gap-2 sm:grid-cols-2">
-              <InfoRow icon={Store} title="Retrait" value={offer.pickupName || "—"} sub={`${offer.pickupDistanceKm} km`} />
+              <InfoRow icon={Store} title="Retrait" value={offer.pickupName || "—"} sub={`${offer.pickupZone || "Gombe"} · ${offer.pickupDistanceKm} km`} />
               <InfoRow icon={MapPin} title="Livraison" value={offer.deliveryAddress || "—"} sub={`${offer.deliveryZone || "Gombe"} · ${offer.deliveryDistanceKm} km`} />
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-gray-100 px-2.5 py-1">#{offer.orderRef || offer.orderId.slice(-6)}</span>
               {offer.firstItemName && <span className="rounded-full bg-gray-100 px-2.5 py-1">{offer.firstItemName}</span>}
               <span className="rounded-full bg-gray-100 px-2.5 py-1">≈ {offer.etaMinutes} min</span>
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800">Gain {formatPriceUSD(offer.earningsUsd)}</span>
             </div>
           </CardContent>
         </Card>
@@ -318,7 +323,7 @@ export function RiderClient({ initial }: { initial: RiderState }) {
               <div className="font-semibold">Course en cours #{job.id.slice(-6)}</div>
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{step.label}</span>
             </div>
-            <ol className="mt-3 grid grid-cols-5 gap-1" aria-label="Étapes de la course">
+            <ol className="mt-3 grid grid-cols-6 gap-1" aria-label="Étapes de la course">
               {STEPS.map((s, i) => (
                 <li key={s.status} className={cn("h-1.5 rounded-full", i <= stepIndex ? "bg-emerald-600" : "bg-gray-200")} />
               ))}
@@ -336,6 +341,19 @@ export function RiderClient({ initial }: { initial: RiderState }) {
                   <li key={i} className="flex justify-between gap-3"><span className="truncate">{it.name}</span><span className="tabular-nums">× {it.quantity}</span></li>
                 ))}
               </ul>
+            </div>
+            <a
+              href={towardPickup ? pickupMaps : dropoffMaps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center gap-2 self-start rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-900 hover:bg-gray-50"
+            >
+              <Navigation className="h-4 w-4" aria-hidden />
+              {towardPickup ? "Itinéraire vers le retrait" : "Itinéraire vers le client"}
+            </a>
+            <div className="text-sm">
+              Gain de la course : <span className="font-bold text-emerald-800">{formatPriceUSD(job.earningsUsd)}</span>
+              <span className="text-gray-500"> · {formatPriceUSD(job.deliveryFeeUsd)} de frais, ta part 70 %</span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               {job.paymentMethod === "Cash on delivery" && (

@@ -9,7 +9,7 @@ export function statusTone(status: string) {
   return "bg-amber-50 text-amber-800";
 }
 
-export function OrderRow({ o, restaurantName }: { o: Order; restaurantName?: string }) {
+export function OrderRow({ o, restaurantName, extra }: { o: Order; restaurantName?: string; extra?: React.ReactNode }) {
   return (
     <li>
       <Link href={`/order/${o.id}`} className="flex items-center justify-between gap-3 p-3 hover:bg-gray-50 sm:p-4" style={{ color: "inherit" }}>
@@ -26,6 +26,7 @@ export function OrderRow({ o, restaurantName }: { o: Order; restaurantName?: str
           <span className={cn("mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium", statusTone(o.status))}>{statusLabelFr(o.status)}</span>
         </div>
       </Link>
+      {extra}
     </li>
   );
 }

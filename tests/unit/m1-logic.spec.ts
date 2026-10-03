@@ -9,6 +9,7 @@ import { normalizeDrcPhone, formatDrcPhone } from "../../src/lib/phone";
 import { validateCreateOrder } from "../../src/lib/validation";
 import { parseMenuPrice } from "../../src/lib/price";
 import { computeBreakdown, DEFAULT_FEES, DEFAULT_ZONES, zoneFee } from "../../src/lib/fees";
+import { deliveryLegKm, quoteDeliveryFeeUsd } from "../../src/lib/geo";
 
 const merchant = { role: "merchant" as const, merchantId: "rest_kfc_gombe" };
 const placedKfc = { restaurantId: "rest_kfc_gombe", status: "placed" as const };
@@ -117,6 +118,22 @@ test.describe("validateCreateOrder", () => {
   });
 });
 
+test.describe("quoteDeliveryFeeUsd", () => {
+  test("prices the delivery leg, with a floor for very short hops", () => {
+    expect(quoteDeliveryFeeUsd(0)).toBe(2);
+    expect(quoteDeliveryFeeUsd(0.5)).toBe(2);
+    expect(quoteDeliveryFeeUsd(1.25)).toBe(2.5);
+    expect(quoteDeliveryFeeUsd(2)).toBe(3.1);
+    expect(quoteDeliveryFeeUsd(Number.NaN)).toBe(2);
+  });
+  test("uses the distance from pickup to the center of Gombe", () => {
+    const km = deliveryLegKm(-4.3156, 15.3126);
+    expect(km).toBeGreaterThan(0.5);
+    expect(km).toBeLessThan(5);
+    expect(quoteDeliveryFeeUsd(km)).toBeGreaterThanOrEqual(2);
+  });
+});
+
 test.describe("parseMenuPrice", () => {
   test("accepts sane prices, including a French decimal comma", () => {
     expect(parseMenuPrice("12.5")).toBe(12.5);
@@ -131,6 +148,69 @@ test.describe("parseMenuPrice", () => {
 });
 
 import { parseWhatsappNumber } from "../../src/lib/contact";
+import { stepDispatchQueue } from "../../src/lib/dispatch";
+import { mobileMoneyProvider, selectWithdrawable } from "../../src/lib/payouts";
+
+test.describe("stepDispatchQueue", () => {
+  const now = 1_000_000;
+  const online = new Set(["near", "watching", "far"]);
+  const watching = new Set(["watching"]);
+  const queue = { riderIds: ["near", "watching", "far"], currentIndex: 0, expireAt: now + 45_000 };
+
+  test("gives the course immediately to the rider who has the dashboard open", () => {
+    const step = stepDispatchQueue(queue, "watching", {
+      now,
+      online,
+      declined: false,
+      present: (id) => watching.has(id),
+    });
+    expect(step.offer).toBe(true);
+    expect(step.currentIndex).toBe(1);
+    expect(step.closed).toBe(false);
+  });
+
+  test("keeps the course with a rider who is already looking at it", () => {
+    const step = stepDispatchQueue(queue, "watching", {
+      now,
+      online,
+      declined: false,
+      present: (id) => id === "near" || id === "watching",
+    });
+    expect(step.offer).toBe(false);
+    expect(step.currentIndex).toBe(0);
+    expect(step.changed).toBe(false);
+  });
+
+  test("returns the course to the rider who currently holds it", () => {
+    const step = stepDispatchQueue(queue, "near", {
+      now,
+      online,
+      declined: false,
+      present: (id) => id === "near",
+    });
+    expect(step.offer).toBe(true);
+    expect(step.currentIndex).toBe(0);
+  });
+});
+test.describe("selectWithdrawable", () => {
+  const delivered = { id: "a", status: "delivered", deliveryFeeUsd: 2.99, riderPaidAt: undefined as number | undefined };
+  test("sums unpaid courses and skips ones already in a withdrawal or already paid", () => {
+    const second = { id: "b", status: "delivered", deliveryFeeUsd: 2.99 };
+    const paid = { id: "c", status: "delivered", deliveryFeeUsd: 2.99, riderPaidAt: 1 };
+    const cancelled = { id: "d", status: "cancelled", deliveryFeeUsd: 2.99 };
+    const result = selectWithdrawable([delivered, second, paid, cancelled], ["b"]);
+    expect(result.orderIds).toEqual(["a"]);
+    expect(result.amountUsd).toBe(2.09);
+  });
+  test("reads the Mobile Money network from the number", () => {
+    expect(mobileMoneyProvider("0812345678")?.provider).toBe("mpesa");
+    expect(mobileMoneyProvider("+243 97 123 4567")?.provider).toBe("airtel");
+    expect(mobileMoneyProvider("0841234567")?.label).toBe("Orange Money");
+    expect(mobileMoneyProvider("0901234567")?.provider).toBe("africell");
+    expect(mobileMoneyProvider("0712345678")).toBeNull();
+  });
+});
+
 test.describe("parseWhatsappNumber (NEXT_PUBLIC_SUPPORT_WHATSAPP)", () => {
   test("accepts valid numbers, hides the button otherwise", () => {
     expect(parseWhatsappNumber("+243 81 234 5678")).toBe("243812345678");

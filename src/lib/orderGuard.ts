@@ -40,12 +40,13 @@ export function checkMerchantAction(
 }
 
 /** Rider step transitions: action -> required current status. */
-export const RIDER_STEP_FROM: Record<"going" | "arrived" | "picked_up" | "delivering" | "delivered", OrderStatus> = {
+export const RIDER_STEP_FROM: Record<"going" | "arrived" | "picked_up" | "delivering" | "at_customer" | "delivered", OrderStatus> = {
   going: "rider_assigned",
   arrived: "going_to_restaurant",
   picked_up: "arrived",
   delivering: "picked_up",
-  delivered: "delivering",
+  at_customer: "delivering",
+  delivered: "arrived_at_customer",
 };
 
 export const RIDER_ACTIVE_STATUSES: OrderStatus[] = [
@@ -54,6 +55,7 @@ export const RIDER_ACTIVE_STATUSES: OrderStatus[] = [
   "arrived",
   "picked_up",
   "delivering",
+  "arrived_at_customer",
 ];
 
 /**

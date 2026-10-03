@@ -7,6 +7,7 @@ import {
   progressToArrived,
   progressToDelivering,
   progressToGoing,
+  progressToCustomer,
   confirmPickup,
   confirmDelivered,
 } from "@/src/lib/data/db";
@@ -14,11 +15,18 @@ import { getCurrentUser } from "@/src/lib/auth";
 import { dispatchPostSchema } from "@/src/lib/validation";
 import { RIDER_STEP_FROM } from "@/src/lib/orderGuard";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (user.role !== "rider" || !user.riderId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const offer = await nextOfferForRider(user.riderId);
+  const skip = new Set(
+    (req.nextUrl.searchParams.get("skip") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.length < 80)
+      .slice(0, 20),
+  );
+  const offer = await nextOfferForRider(user.riderId, skip);
   return NextResponse.json({ offer });
 }
 
@@ -75,6 +83,9 @@ export async function POST(req: NextRequest) {
       break;
     case "delivering":
       ok = await progressToDelivering(riderId, orderId);
+      break;
+    case "at_customer":
+      ok = await progressToCustomer(riderId, orderId);
       break;
     case "delivered":
       if (!pin) {

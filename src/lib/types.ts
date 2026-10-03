@@ -67,7 +67,8 @@ export interface Rider {
   longitude: number;
   earningsTodayUsd: number;
   suspended?: boolean;
-  phone?: string;
+  phone?: string; // E.164, +243XXXXXXXXX
+  email?: string;
 }
 
 export type OrderStatus =
@@ -80,6 +81,7 @@ export type OrderStatus =
   | "arrived"
   | "picked_up"
   | "delivering"
+  | "arrived_at_customer"
   | "delivered"
   | "cancelled";
 
@@ -150,15 +152,59 @@ export interface Order {
   prepMinutes?: number;
   acceptedAt?: number;
   deliveredAt?: number;
+  /** Set when an admin has marked this delivery's rider share as paid out. */
+  riderPaidAt?: number;
+}
+
+export type MobileMoneyProvider = "mpesa" | "airtel" | "orange" | "africell" | "mobile";
+export type RiderPayoutStatus = "requested" | "paid" | "rejected";
+
+/** A rider's request to receive pending earnings on a Mobile Money number. */
+export interface RiderPayout {
+  id: string;
+  riderId: string;
+  amountUsd: number;
+  orderIds: string[];
+  phone: string;
+  provider: MobileMoneyProvider;
+  status: RiderPayoutStatus;
+  createdAt: number;
+  updatedAt: number;
+  paidAt?: number;
+}
+
+export type SupportPriority = "normal" | "urgent";
+export type SupportRequestStatus = "open" | "in_progress" | "resolved";
+
+export interface SupportRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  role: UserRole;
+  topic: string;
+  message: string;
+  orderId?: string;
+  priority: SupportPriority;
+  status: SupportRequestStatus;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface DispatchOffer {
   orderId: string;
+  orderRef: string;
   riderId: string;
   pickupDistanceKm: number;
   deliveryDistanceKm: number;
   etaMinutes: number;
+  deliveryFeeUsd: number;
   earningsUsd: number;
   expiresAt: number; // epoch ms
+  deliveryAddress?: string;
+  deliveryZone?: string;
+  firstItemName?: string;
+  firstItemImageUrl?: string;
+  pickupName?: string;
+  pickupZone?: string;
 }
 

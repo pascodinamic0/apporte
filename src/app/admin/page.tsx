@@ -9,7 +9,7 @@ import { OrderRow, Panel } from "./parts";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Vue d’ensemble" };
 
-const ACTIVE = ["placed", "restaurant_accepted", "preparing", "rider_searching", "rider_assigned", "going_to_restaurant", "arrived", "picked_up", "delivering"];
+const ACTIVE = ["placed", "restaurant_accepted", "preparing", "rider_searching", "rider_assigned", "going_to_restaurant", "arrived", "picked_up", "delivering", "arrived_at_customer"];
 
 /** Start of the current day in Kinshasa (UTC+1), as epoch ms. */
 function kinshasaStartOfDay(now = new Date()) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addSupportNote, getOrder, setOrderRating, updateOrderStatus } from "@/src/lib/data/db";
+import { addSupportNote, getOrder, setOrderRating, setRiderPayout, updateOrderStatus } from "@/src/lib/data/db";
 import { advanceOrderAsMerchant } from "@/src/lib/orderActions";
 import { checkMerchantDecline, isMerchantAction } from "@/src/lib/orderGuard";
 import { STOCKOUT_REASON } from "@/src/lib/decline";
@@ -28,8 +28,7 @@ export async function GET(
     if (!q.error && q.data) {
       const idx = Math.max(0, q.data.current_index ?? 0);
       const rid = (Array.isArray(q.data.rider_ids) ? q.data.rider_ids[idx] : undefined) as string | undefined;
-      const notExpired = q.data.expire_at && new Date(q.data.expire_at).getTime() > Date.now();
-      isCurrentOfferHolder = notExpired && rid === user.riderId;
+      isCurrentOfferHolder = rid === user.riderId;
     }
   }
   if (!isCustomer && !isAdmin && !isMerchant && !isAssignedRider && !isCurrentOfferHolder) {
@@ -63,7 +62,7 @@ export async function PATCH(
     const action = String((raw as { action?: unknown }).action);
     const known = [
       "update_status", "merchant_accept", "merchant_preparing", "merchant_ready", "merchant_accept_prep", "merchant_reject",
-      "customer_cancel", "admin_cancel", "admin_reassign", "admin_refund", "rate", "support_note",
+      "customer_cancel", "admin_cancel", "admin_reassign", "admin_refund", "rate", "support_note", "rider_payout",
     ];
     const reason = !known.includes(action)
       ? "unknown_action"
@@ -152,6 +151,13 @@ export async function PATCH(
   } else if (body.action === "support_note") {
     if (!isAdmin && !isMerchant) return forbidden();
     await addSupportNote(id, body.note, user.id);
+  } else if (body.action === "rider_payout") {
+    if (!isAdmin) return forbidden();
+    if (order.status !== "delivered") {
+      return NextResponse.json({ error: "conflict", reason: "not_delivered" }, { status: 409 });
+    }
+    const saved = await setRiderPayout(id, body.paid);
+    if (!saved) return NextResponse.json({ error: "conflict", reason: "not_delivered" }, { status: 409 });
   }
   const updated = await getOrder(id);
   if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });

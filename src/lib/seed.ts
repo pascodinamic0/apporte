@@ -349,6 +349,8 @@ export const riders: Rider[] = [
     latitude: -4.314,
     longitude: 15.312,
     earningsTodayUsd: 0,
+    phone: "+243812345678",
+    email: "rider@demo.apporte.cd",
   },
   {
     id: "rider_2",
@@ -358,6 +360,8 @@ export const riders: Rider[] = [
     latitude: -4.318,
     longitude: 15.305,
     earningsTodayUsd: 0,
+    phone: "+243822345679",
+    email: "patrick.livreur@demo.apporte.cd",
   },
   {
     id: "rider_3",
@@ -367,6 +371,8 @@ export const riders: Rider[] = [
     latitude: -4.321,
     longitude: 15.309,
     earningsTodayUsd: 0,
+    phone: "+243972345680",
+    email: "martha.livreur@demo.apporte.cd",
   },
   {
     id: "rider_4",
@@ -376,6 +382,8 @@ export const riders: Rider[] = [
     latitude: -4.312,
     longitude: 15.298,
     earningsTodayUsd: 0,
+    phone: "+243842345681",
+    email: "junior.livreur@demo.apporte.cd",
   },
   {
     id: "rider_5",
@@ -385,6 +393,8 @@ export const riders: Rider[] = [
     latitude: -4.305,
     longitude: 15.315,
     earningsTodayUsd: 0,
+    phone: "+243992345682",
+    email: "amina.livreur@demo.apporte.cd",
   },
   {
     id: "rider_6",
@@ -394,6 +404,8 @@ export const riders: Rider[] = [
     latitude: -4.316,
     longitude: 15.301,
     earningsTodayUsd: 0,
+    phone: "+243852345683",
+    email: "michel.livreur@demo.apporte.cd",
   },
 ];
 

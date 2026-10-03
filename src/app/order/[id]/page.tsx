@@ -16,6 +16,7 @@ const steps = [
   "arrived",
   "picked_up",
   "delivering",
+  "arrived_at_customer",
   "delivered",
 ] as const;
 
