@@ -57,12 +57,12 @@ export const RIDER_ACTIVE_STATUSES: OrderStatus[] = [
 ];
 
 /**
- * Decline is only allowed for the owning merchant, and only while the order
- * is still "nouvelle" (placed). Later steps cannot be refused.
+ * Decline is only allowed for the owning merchant, while the order is still
+ * "nouvelle" (placed) and not yet paid. A paid order cannot be refused.
  */
 export function checkMerchantDecline(
   user: Pick<User, "role" | "merchantId"> | null | undefined,
-  order: Pick<Order, "restaurantId" | "status"> | null | undefined,
+  order: Pick<Order, "restaurantId" | "status" | "paymentStatus"> | null | undefined,
 ): GuardResult {
   if (!user) return { ok: false, status: 401, error: "unauthorized" };
   if (user.role !== "merchant" || !user.merchantId) return { ok: false, status: 403, error: "forbidden" };
@@ -71,5 +71,7 @@ export function checkMerchantDecline(
     return { ok: false, status: 403, error: "forbidden" };
   }
   if (order.status !== "placed") return { ok: false, status: 409, error: "invalid_state" };
+  // Money already taken cannot be unlocked: refuse is only for unpaid "nouvelle" orders.
+  if (order.paymentStatus === "paid") return { ok: false, status: 409, error: "paid_order" };
   return { ok: true };
 }

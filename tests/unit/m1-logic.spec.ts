@@ -58,6 +58,8 @@ test.describe("checkMerchantDecline", () => {
     expect(checkMerchantDecline(merchant, { ...placedKfc, status: "restaurant_accepted" })).toMatchObject({ status: 409 });
     expect(checkMerchantDecline(merchant, { ...placedKfc, status: "delivered" })).toMatchObject({ status: 409 });
     expect(checkMerchantDecline(merchant, placedKfc)).toEqual({ ok: true });
+    expect(checkMerchantDecline(merchant, { ...placedKfc, paymentStatus: "unpaid" })).toEqual({ ok: true });
+    expect(checkMerchantDecline(merchant, { ...placedKfc, paymentStatus: "paid" })).toMatchObject({ status: 409, error: "paid_order" });
   });
 });
 

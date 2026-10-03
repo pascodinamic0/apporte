@@ -189,7 +189,9 @@ export function KitchenBoard({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(
-          data.error === "invalid_state" || data.reason === "invalid_state"
+          data.error === "paid_order" || data.reason === "paid_order"
+            ? "Commande déjà payée : on ne peut pas la refuser."
+            : data.error === "invalid_state" || data.reason === "invalid_state"
             ? "La commande a déjà changé d’étape."
             : res.status === 401
               ? "Session expirée. Reconnecte-toi."
@@ -302,6 +304,10 @@ export function KitchenBoard({
           </button>
         )}
       </div>
+
+      <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-snug text-amber-950" data-testid="stock-hint">
+        Rupture de stock : marque le plat indisponible dans le menu avant les commandes, pour ne pas encaisser un client. Une commande déjà payée ne peut pas être refusée.
+      </p>
 
       {/* Phone tabs */}
       <nav aria-label="Colonnes" className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:hidden">
@@ -469,10 +475,15 @@ function OrderCard({
       {o.status === "placed" && (
         <div className="mt-3 grid gap-2">
           <Button size="sm" className="w-full" disabled={busy} data-action="merchant_accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: 15 }, "Commande acceptée (15 min)")}>Accepter · 15 min</Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" data-testid="open-decline" data-action="open-reject" onClick={onDecline}>Refuser</Button>
+          <div className={cn("grid gap-2", o.paymentStatus !== "paid" && "grid-cols-2")}>
+            {o.paymentStatus !== "paid" && (
+              <Button size="sm" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" data-testid="open-decline" data-action="open-reject" onClick={onDecline}>Refuser</Button>
+            )}
             <Button size="sm" variant="outline" onClick={onOpen}>Détails</Button>
           </div>
+          {o.paymentStatus === "paid" && (
+            <p className="text-xs text-amber-800" data-testid="paid-no-refuse">Déjà payée : refus impossible.</p>
+          )}
         </div>
       )}
       {o.status === "restaurant_accepted" && (
@@ -523,10 +534,17 @@ function OrderDetail({
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-[auto_1fr] gap-2">
-            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" onClick={onDecline} data-action="open-reject" data-testid="open-decline">Refuser</Button>
-            <Button disabled={busy} data-action="detail-accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: prep }, `Commande acceptée (${prep} min)`)}>Accepter · {prep} min</Button>
-          </div>
+          {o.paymentStatus === "paid" ? (
+            <div className="space-y-2">
+              <p className="text-sm text-amber-900" data-testid="paid-no-refuse">Cette commande est déjà payée. On ne peut pas la refuser.</p>
+              <Button disabled={busy} data-action="detail-accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: prep }, `Commande acceptée (${prep} min)`)}>Accepter · {prep} min</Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[auto_1fr] gap-2">
+              <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" onClick={onDecline} data-action="open-reject" data-testid="open-decline">Refuser</Button>
+              <Button disabled={busy} data-action="detail-accept" onClick={() => run({ action: "merchant_accept_prep", prepMinutes: prep }, `Commande acceptée (${prep} min)`)}>Accepter · {prep} min</Button>
+            </div>
+          )}
         </div>
     ) : o.status === "restaurant_accepted" ? (
       <Button className="mb-1 w-full" disabled={busy} onClick={() => run({ action: "merchant_preparing" }, "Préparation lancée")}>Lancer la préparation</Button>

@@ -1,9 +1,10 @@
-import type { Order, OrderStatus } from "@/src/lib/types";
+import type { Order, OrderStatus, PaymentStatus } from "@/src/lib/types";
 
 /** What the kitchen board needs: no PIN, no phone. */
 export type BoardOrder = {
   id: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
   createdAt: number;
   updatedAt: number;
   acceptedAt?: number;
@@ -23,6 +24,7 @@ export function toBoardOrder(o: Order, riderName: Map<string, string>): BoardOrd
   return {
     id: o.id,
     status: o.status,
+    paymentStatus: o.paymentStatus === "paid" ? "paid" : "unpaid",
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
     acceptedAt: o.acceptedAt,
