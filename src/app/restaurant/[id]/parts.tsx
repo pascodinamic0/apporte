@@ -18,9 +18,13 @@ export function AddToCartButton({ menuItem, restaurantId, closed = false }: { me
   }
   if (!menuItem.available) {
     return (
-      <Button variant="outline" size="sm" disabled aria-disabled className="rounded-full">
+      <span
+        className="inline-flex h-9 cursor-not-allowed select-none items-center rounded-full bg-gray-200 px-3 text-sm font-medium text-gray-500"
+        aria-disabled="true"
+        data-testid="dish-unavailable"
+      >
         Indisponible
-      </Button>
+      </span>
     );
   }
   return (

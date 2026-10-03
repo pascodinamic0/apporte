@@ -352,22 +352,25 @@ export async function cancelOrder(orderId: string, by: string, reason: string): 
 }
 
 /** Cancel only if still "placed" (atomic, so a merchant accept in between wins). */
-export async function cancelIfPlaced(orderId: string, by: string, reason: string, allowSearching = false): Promise<boolean> {
+export async function cancelIfPlaced(orderId: string, by: string, reason: string, allowSearching = false, onlyUnpaid = false): Promise<boolean> {
   if (!supabaseConfigured()) {
     const o = memory.getOrder(orderId);
     if (!o || !(o.status === "placed" || (allowSearching && o.status === "rider_searching" && !o.riderId))) return false;
+    if (onlyUnpaid && o.paymentStatus === "paid") return false;
     memory.updateOrderStatus(orderId, "cancelled");
     Object.assign(o, { cancelReason: reason, cancelledBy: by });
     return true;
   }
   const supabase = getServiceClient();
   const statuses = allowSearching ? ["placed", "rider_searching"] : ["placed"];
-  const { data, error } = await supabase
+  let query = supabase
     .from("orders")
     .update({ status: "cancelled", cancel_reason: reason, cancelled_by: by, updated_at: new Date().toISOString() })
     .eq("id", orderId)
     .in("status", statuses)
-    .is("rider_id", null)
+    .is("rider_id", null);
+  if (onlyUnpaid) query = query.eq("payment_status", "unpaid");
+  const { data, error } = await query
     .select("id");
   if (error) throw error;
   if (!data?.length) return false;

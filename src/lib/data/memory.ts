@@ -20,6 +20,7 @@ import {
   smartFinds as seedProducts,
 } from "../seed";
 import { generatePin, randomId } from "../utils";
+import { CatalogError } from "../catalogError";
 
 // In-memory "DB" for demo mode. Kept on globalThis so route handlers, server
 // components and server actions (bundled separately by Next) share one store.
@@ -107,21 +108,29 @@ export function createOrder(params: {
   paymentMethod: PaymentMethod;
 }): Order {
   // Recompute names and prices from the catalogue (never trust the client)
-  const items: OrderItem[] = params.items.map((it) => {
+  const unavailableNames: string[] = [];
+  const items: OrderItem[] = [];
+  for (const it of params.items) {
     if (it.kind === "food" && it.menuItemId) {
       const m = db.menuItems.find((x) => x.id === it.menuItemId);
-      if (!m) throw new Error("invalid_item");
-      if (!m.available) throw new Error("unavailable_item");
-      if (params.restaurantId && m.restaurantId !== params.restaurantId) throw new Error("invalid_restaurant_item");
-      return { id: randomId("oi"), kind: "food", restaurantId: m.restaurantId, menuItemId: m.id, name: m.name, quantity: Number(it.quantity || 1), unitPriceUsd: m.priceUsd, imageUrl: m.imageUrl };
+      if (!m) throw new CatalogError("invalid_item");
+      if (!m.available) {
+        unavailableNames.push(m.name);
+        continue;
+      }
+      if (params.restaurantId && m.restaurantId !== params.restaurantId) throw new CatalogError("invalid_restaurant_item");
+      items.push({ id: randomId("oi"), kind: "food", restaurantId: m.restaurantId, menuItemId: m.id, name: m.name, quantity: Number(it.quantity || 1), unitPriceUsd: m.priceUsd, imageUrl: m.imageUrl });
+      continue;
     }
     if (it.kind === "smart_find" && it.productId) {
       const p = db.products.find((x) => x.id === it.productId);
-      if (!p) throw new Error("invalid_item");
-      return { id: randomId("oi"), kind: "smart_find", productId: p.id, name: p.name, quantity: Number(it.quantity || 1), unitPriceUsd: p.priceUsd, imageUrl: p.imageUrl };
+      if (!p) throw new CatalogError("invalid_item");
+      items.push({ id: randomId("oi"), kind: "smart_find", productId: p.id, name: p.name, quantity: Number(it.quantity || 1), unitPriceUsd: p.priceUsd, imageUrl: p.imageUrl });
+      continue;
     }
-    throw new Error("invalid_item");
-  });
+    throw new CatalogError("invalid_item");
+  }
+  if (unavailableNames.length) throw new CatalogError("unavailable_item", unavailableNames);
   const subtotal = items.reduce((sum, it) => sum + it.unitPriceUsd * it.quantity, 0);
   const deliveryFee = zoneFee(DEFAULT_ZONES, params.zone ?? PILOT_ZONE) ?? DEFAULT_ZONES[0].deliveryFeeUsd;
   const bd = computeBreakdown(subtotal, deliveryFee, DEFAULT_FEES);
@@ -141,6 +150,7 @@ export function createOrder(params: {
     customerPhone: params.customerPhone,
     zone: params.zone ?? PILOT_ZONE,
     paymentMethod: params.paymentMethod,
+    paymentStatus: "unpaid",
     status: params.restaurantId ? "placed" : "rider_searching",
     pin,
     createdAt: now,

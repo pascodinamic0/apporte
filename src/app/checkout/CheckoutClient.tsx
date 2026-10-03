@@ -13,6 +13,7 @@ import { formatDrcPhone, normalizeDrcPhone } from "@/src/lib/phone";
 import type { UserRole } from "@/src/lib/types";
 import type { SavedAddress } from "@/src/lib/data/ops";
 import { vatIncluded } from "@/src/lib/fees";
+import { unavailableCheckoutMessage } from "@/src/lib/stock";
 import type { Pin } from "@/src/components/MapPicker";
 
 const MapPicker = dynamic(() => import("@/src/components/MapPicker").then((m) => m.MapPicker), {
@@ -74,6 +75,8 @@ export function CheckoutClient({
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saveNew, setSaveNew] = useState(false);
   const [saveLabel, setSaveLabel] = useState("Maison");
+  const [stockBlock, setStockBlock] = useState<string | null>(null);
+  const [stockSource, setStockSource] = useState<"api" | "menu" | null>(null);
 
   function applySaved(a: SavedAddress) {
     setSavedId(a.id);
@@ -97,6 +100,52 @@ export function CheckoutClient({
     if (def) applySaved(def);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const cartKey = items.map((i) => `${i.kind}:${i.menuItemId || i.productId}:${i.quantity}`).join("|");
+  useEffect(() => {
+    if (!hydrated || !restaurantId) return;
+    const food = items.filter((i) => i.kind === "food" && i.menuItemId);
+    if (food.length === 0) {
+      const t = window.setTimeout(() => {
+        setStockBlock(null);
+        setStockSource(null);
+      }, 0);
+      return () => window.clearTimeout(t);
+    }
+    let cancel = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/restaurants/${restaurantId}/availability`, { cache: "no-store" });
+        if (!res.ok || cancel) return;
+        const data = await res.json();
+        const rows = Array.isArray(data.items) ? data.items : [];
+        const byId = new Map<string, { name?: string; available?: boolean }>();
+        for (const row of rows) {
+          if (row && typeof row.id === "string") byId.set(row.id, row);
+        }
+        const names = food.flatMap((i) => {
+          const row = byId.get(i.menuItemId as string);
+          if (!row || row.available !== false) return [];
+          return [typeof row.name === "string" && row.name ? row.name : i.name];
+        });
+        if (cancel) return;
+        if (names.length) {
+          setStockBlock(unavailableCheckoutMessage(names));
+          setStockSource("menu");
+        } else {
+          setStockBlock(null);
+          setStockSource(null);
+        }
+      } catch {
+        /* the order API remains the gate */
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+    // cartKey captures the lines we care about; items is read from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, restaurantId, cartKey]);
 
   const subtotal = items.reduce((s, i) => s + i.unitPriceUsd * i.quantity, 0);
   const deliveryFee = zones.find((z) => z.name === zone)?.fee ?? zones[0]?.fee ?? 0;
@@ -149,6 +198,14 @@ export function CheckoutClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.reason === "unavailable_item" || data.error === "unavailable_item") {
+          const names = Array.isArray(data.items) ? data.items.filter((n: unknown): n is string => typeof n === "string") : [];
+          const msg = unavailableCheckoutMessage(names);
+          setStockBlock(msg);
+          setStockSource("api");
+          toast.error(msg);
+          return;
+        }
         toast.error(ORDER_ERRORS[data.reason] || ORDER_ERRORS[data.error] || "La commande n’a pas pu être envoyée. Réessaie.");
         return;
       }
@@ -215,6 +272,13 @@ export function CheckoutClient({
   return (
     <form className="py-2" onSubmit={placeOrder} noValidate>
       <h1 className="mb-4 text-2xl font-extrabold tracking-tight">Finaliser la commande</h1>
+      {stockBlock && (
+        <div role="alert" data-testid="checkout-blocked" data-source={stockSource || undefined} className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-snug text-red-900">
+          <p className="font-semibold">Commande bloquée</p>
+          <p className="mt-1">{stockBlock}</p>
+          <Link href="/cart" className="mt-2 inline-block font-semibold underline">Ouvrir le panier pour retirer le plat</Link>
+        </div>
+      )}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
           <section className="card-elevated border border-gray-200 bg-white p-4 sm:p-5">
@@ -420,8 +484,8 @@ export function CheckoutClient({
             </div>
           )}
           {canOrder ? (
-            <Button type="submit" size="lg" className="mt-4 w-full rounded-xl" disabled={placing || restClosed}>
-              {placing ? "Envoi…" : `Commander · ${formatPriceUSD(total)}`}
+            <Button type="submit" size="lg" className="mt-4 w-full rounded-xl" disabled={placing || restClosed || !!stockBlock}>
+              {placing ? "Envoi…" : stockBlock ? "Commande bloquée" : `Commander · ${formatPriceUSD(total)}`}
             </Button>
           ) : (
             <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">

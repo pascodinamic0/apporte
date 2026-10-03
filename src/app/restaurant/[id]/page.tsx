@@ -106,7 +106,7 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
             <h2 id={`sec-${g.key}`} className="mb-3 text-lg font-bold">{g.label}</h2>
             <div className="grid gap-3 md:grid-cols-2">
               {g.items.map((m) => (
-                <article key={m.id} data-menu-item={m.id} className={cn("card-elevated flex gap-3 border border-gray-200 bg-white p-3 sm:p-4", !m.available && "opacity-70")}>
+                <article key={m.id} data-menu-item={m.id} data-available={m.available ? "1" : "0"} className={cn("card-elevated flex gap-3 border border-gray-200 bg-white p-3 sm:p-4", !m.available && "bg-gray-50 opacity-60 grayscale")}>
                   <SafeImage
                     src={m.imageUrl}
                     alt={m.name}

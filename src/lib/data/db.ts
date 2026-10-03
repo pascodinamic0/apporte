@@ -18,6 +18,7 @@ import { computeBreakdown, DEFAULT_FEES, zoneFee } from "../fees";
 import { normalizeHours, restaurantAvailability } from "../hours";
 import { getFeeSettings, listZones } from "./settings";
 import { emitOrderEvent } from "../events";
+import { CatalogError } from "../catalogError";
 
 export function supabaseConfigured(): boolean {
   return Boolean(
@@ -205,14 +206,30 @@ export async function createOrder(params: {
   const menuById = new Map<string, any>((menuRes.data || []).map((m: any) => [m.id, m]));
   const prodById = new Map<string, any>((prodRes.data || []).map((p: any) => [p.id, p]));
 
-  const serverItems = params.items.map((it) => {
+  const unavailableNames: string[] = [];
+  const serverItems: {
+    id: string;
+    order_id: string;
+    kind: string;
+    restaurant_id: string | null;
+    menu_item_id: string | null;
+    product_id: string | null;
+    name: string;
+    quantity: number;
+    unit_price_usd: number;
+    image_url: string | null;
+  }[] = [];
+  for (const it of params.items) {
     if (it.kind === "food" && it.menuItemId) {
       const m = menuById.get(it.menuItemId);
-      if (!m) throw new Error("invalid_item");
-      if (m.available === false) throw new Error("unavailable_item");
+      if (!m) throw new CatalogError("invalid_item");
+      if (m.available === false) {
+        unavailableNames.push(String(m.name));
+        continue;
+      }
       // Enforce restaurant if provided
-      if (params.restaurantId && m.restaurant_id !== params.restaurantId) throw new Error("invalid_restaurant_item");
-      return {
+      if (params.restaurantId && m.restaurant_id !== params.restaurantId) throw new CatalogError("invalid_restaurant_item");
+      serverItems.push({
         id: randomId("oi"),
         order_id: "PENDING", // placeholder, filled later
         kind: "food",
@@ -223,12 +240,13 @@ export async function createOrder(params: {
         quantity: Number(it.quantity || 1),
         unit_price_usd: Number(m.price_usd),
         image_url: m.image_url ?? null,
-      };
+      });
+      continue;
     }
     if (it.kind === "smart_find" && it.productId) {
       const p = prodById.get(it.productId);
-      if (!p) throw new Error("invalid_item");
-      return {
+      if (!p) throw new CatalogError("invalid_item");
+      serverItems.push({
         id: randomId("oi"),
         order_id: "PENDING",
         kind: "smart_find",
@@ -239,10 +257,12 @@ export async function createOrder(params: {
         quantity: Number(it.quantity || 1),
         unit_price_usd: Number(p.price_usd),
         image_url: p.image_url ?? null,
-      };
+      });
+      continue;
     }
-    throw new Error("invalid_item");
-  });
+    throw new CatalogError("invalid_item");
+  }
+  if (unavailableNames.length) throw new CatalogError("unavailable_item", unavailableNames);
 
   const subtotal = serverItems.reduce((sum, it) => sum + it.unit_price_usd * it.quantity, 0);
   const bd = computeBreakdown(subtotal, fee, fees, restaurant?.commissionPct ?? null);
@@ -267,6 +287,7 @@ export async function createOrder(params: {
     customer_phone: params.customerPhone ?? null,
     zone: zoneName,
     payment_method: params.paymentMethod,
+    payment_status: "unpaid",
     status: (params.restaurantId ? "placed" : "rider_searching") as OrderStatus,
     pin,
     created_at: new Date(now).toISOString(),
@@ -906,6 +927,7 @@ export function mapOrderRow(o: any): Order {
     customerPhone: o.customer_phone ?? undefined,
     zone: o.zone,
     paymentMethod: o.payment_method,
+    paymentStatus: o.payment_status === "paid" ? "paid" : "unpaid",
     status: o.status,
     pin: o.pin,
     createdAt: new Date(o.created_at).getTime(),

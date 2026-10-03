@@ -85,6 +85,9 @@ export type OrderStatus =
 
 export type PaymentMethod = "Mobile Money" | "Cash on delivery" | "Card";
 
+/** unpaid = cash on delivery, not collected yet. paid = money already taken (cannot refuse). */
+export type PaymentStatus = "unpaid" | "paid";
+
 export type OrderItemKind = "food" | "smart_find";
 
 export interface OrderItem {
@@ -127,6 +130,8 @@ export interface Order {
   customerPhone?: string; // E.164, +243XXXXXXXXX
   zone: string; // e.g., Gombe
   paymentMethod: PaymentMethod;
+  /** Missing means unpaid (orders created before the column existed). */
+  paymentStatus?: PaymentStatus;
   status: OrderStatus;
   pin: string; // delivery confirmation
   createdAt: number;

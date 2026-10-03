@@ -102,12 +102,19 @@ export async function PATCH(
   } else if (body.action === "merchant_reject") {
     const guard = checkMerchantDecline(user, order);
     if (!guard.ok) {
-      if (guard.status === 409) return conflict("invalid_state");
+      if (guard.status === 409) return conflict(guard.error);
       return NextResponse.json({ error: guard.error }, { status: guard.status });
     }
-    const ok = await cancelIfPlaced(id, `merchant:${user.id}`, body.reason);
-    if (!ok) return conflict("invalid_state");
-    const unavailable = body.reason === STOCKOUT_REASON ? await markOrderedDishesUnavailable(order) : [];
+    // onlyUnpaid: a payment landing between the check and the write must not cancel a paid order.
+    const ok = await cancelIfPlaced(id, `merchant:${user.id}`, body.reason, false, true);
+    if (!ok) {
+      const again = await getOrder(id);
+      if (again?.paymentStatus === "paid") return conflict("paid_order");
+      return conflict("invalid_state");
+    }
+    // Stock-out on a refusal only applies to unpaid orders. Paid orders are rejected above
+    // and must never pull dishes off the menu as a side effect.
+    const unavailable = body.reason === STOCKOUT_REASON && order.paymentStatus !== "paid" ? await markOrderedDishesUnavailable(order) : [];
     const updated = await getOrder(id);
     if (!updated) return NextResponse.json({ error: "not_found" }, { status: 404 });
     const { pin, ...rest } = updated;

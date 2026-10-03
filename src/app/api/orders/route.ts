@@ -9,6 +9,7 @@ import {
 import { getCurrentUser } from "@/src/lib/auth";
 import type { OrderItem } from "@/src/lib/types";
 import { validateCreateOrder } from "@/src/lib/validation";
+import { catalogNames } from "@/src/lib/catalogError";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -53,7 +54,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, order });
   } catch (e: any) {
     const msg = String(e?.message || "");
-    if (["invalid_item", "unavailable_item", "invalid_restaurant_item", "invalid_restaurant", "zone_not_served"].includes(msg)) {
+    if (msg === "unavailable_item") {
+      return NextResponse.json({ error: msg, reason: msg, items: catalogNames(e) }, { status: 400 });
+    }
+    if (["invalid_item", "invalid_restaurant_item", "invalid_restaurant", "zone_not_served"].includes(msg)) {
       return NextResponse.json({ error: msg, reason: msg }, { status: 400 });
     }
     if (msg === "restaurant_closed") {
